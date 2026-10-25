@@ -1,153 +1,244 @@
-import { Suspense } from 'react';
-import Link from 'next/link';
-import { getTournamentsAction } from '@/app/actions/tournament-actions';
-import { createServerSupabase } from '@/lib/supabase/server';
-import CreateTournamentModal from './CreateTournamentModal';
-import DeleteTournamentModal from './DeleteTournamentModal';
+"use client";
 
-export const metadata = {
-    title: 'अधिकृत राज्य स्पर्धा व अजिंक्यपद | MKKA Tournaments 2026-27',
-    description: 'Maharashtra Kho-Kho Association Official Tournaments and District Registration Portal',
-};
+import { useState, useEffect, Suspense } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import CreateTournamentModal from "./CreateTournamentModal";
+import DeleteTournamentModal from "./DeleteTournamentModal";
 
-async function TournamentsList() {
-    const supabase = await createServerSupabase();
-    const [tournamentsRes, districtsRes] = await Promise.all([
-        getTournamentsAction(),
-        supabase
-            .from('districts')
-            .select('id, name_mr, name_en, code')
-            .order('name_mr', { ascending: true }),
-    ]);
+interface Tournament {
+    id: string;
+    name_mr: string;
+    name_en: string;
+    status?: string;
+    category?: string;
+    start_date?: string;
+    end_date?: string;
+    registration_deadline?: string;
+    venue?: string;
+    district_mr?: string;
+    city?: string;
+    min_players?: number;
+    max_players?: number;
+}
 
-    const tournaments = tournamentsRes.tournaments || [];
-    const districts = districtsRes.data || [];
+const INITIAL_TOURNAMENTS: Tournament[] = [
+    {
+        id: "sub-junior-2026",
+        name_mr: "राज्यस्तरीय सब-ज्युनियर (१४ वर्षांखालील) अजिंक्यपद निवड चाचणी स्पर्धा २०२६",
+        name_en: "State Sub-Junior (Under-14) Kho-Kho Championship 2026",
+        status: "UPCOMING",
+        category: "ज्युनियर",
+        start_date: "5/12/2026",
+        end_date: "8/12/2026",
+        registration_deadline: "खुली (Open)",
+        venue: "ठाणे • छत्रपती शिवाजी महाराज स्टेडियम, ठाणे",
+        min_players: 12,
+        max_players: 15,
+    },
+    {
+        id: "senior-state-2026",
+        name_mr: "५९ वी वरिष्ठ गट पुरुष व महिला राज्य अजिंक्यपद खो-खो स्पर्धा २०२६-२७",
+        name_en: "59th Senior State Kho-Kho Championship 2026-27",
+        status: "UPCOMING",
+        category: "वरिष्ठ गट",
+        start_date: "15/11/2026",
+        end_date: "18/11/2026",
+        registration_deadline: "खुली (Open)",
+        venue: "पुणे • शिवछत्रपती क्रीडानगरी, बालेवाडी",
+        min_players: 12,
+        max_players: 15,
+    },
+];
+
+function TournamentsContent() {
+    const searchParams = useSearchParams();
+    const [tournaments, setTournaments] = useState<Tournament[]>(INITIAL_TOURNAMENTS);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
+
+    // Check URL for admin access (e.g., /tournaments?admin=true)
+    useEffect(() => {
+        if (searchParams.get("admin") === "true") {
+            setIsAdmin(true);
+        }
+    }, [searchParams]);
+
+    // Fetch live tournaments from Supabase
+    const fetchTournaments = async () => {
+        try {
+            const supabase = createClient();
+            const { data, error } = await supabase
+                .from("tournaments")
+                .select("*")
+                .order("created_at", { ascending: false });
+
+            if (!error && data && data.length > 0) {
+                setTournaments(data);
+            }
+        } catch {
+            // Fallback to initial state if table is empty or during network delay
+        }
+    };
+
+    useEffect(() => {
+        fetchTournaments();
+    }, []);
+
+    const handleDeleteClick = (tournament: Tournament) => {
+        setSelectedTournament(tournament);
+        setIsDeleteModalOpen(true);
+    };
 
     return (
-        <div className="space-y-8 max-w-6xl mx-auto">
-            {/* Header Banner with Actions */}
-            <div className="bg-[#F3EDF7] p-8 rounded-[36px] border border-[#CAC4D0]/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#6750A4] bg-white px-3 py-1 rounded-full border">
-                        महाराष्ट्र राज्य खो-खो असोसिएशन • राज्य अजिंक्यपद सत्र २०२६-२७
-                    </span>
-                    <h1 className="text-2xl md:text-3xl font-black text-[#1C1B1F] mt-2">
-                        अधिकृत स्पर्धा व अजिंक्यपद वेळापत्रक
-                    </h1>
-                    <p className="text-xs text-gray-600 mt-1">
-                        Official State Tournaments & District Squad Registration Portal
-                    </p>
+        <div className="min-h-screen bg-[#FDF8FD] text-[#1C1B1F]">
+            <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+
+                {/* Header Banner */}
+                <div className="mb-8 rounded-3xl border border-purple-100 bg-[#F7F2FA] p-6 sm:p-8">
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <span className="inline-block rounded-full bg-purple-100/80 px-3.5 py-1 text-xs font-semibold text-purple-900">
+                                महाराष्ट्र राज्य खो-खो असोसिएशन • राज्य अजिंक्यपद सत्र २०२६-२७
+                            </span>
+                            <h1 className="mt-3 text-2xl font-extrabold text-gray-900 sm:text-3xl">
+                                अधिकृत स्पर्धा व अजिंक्यपद वेळापत्रक
+                            </h1>
+                            <p className="mt-1 text-xs font-medium text-gray-600 sm:text-sm">
+                                Official State Tournaments & District Squad Registration Portal
+                            </p>
+                        </div>
+
+                        {/* Actions: Home, Admin Toggle, and Host Tournament */}
+                        <div className="flex flex-wrap items-center gap-3">
+                            <Link
+                                href="/"
+                                className="rounded-full border border-gray-200 bg-white px-5 py-2 text-xs font-bold text-gray-700 shadow-2xs transition hover:bg-gray-50 hover:text-purple-700"
+                            >
+                                मुख्य पोर्टल (Home)
+                            </Link>
+
+                            {/* Admin Mode Toggle */}
+                            <button
+                                type="button"
+                                onClick={() => setIsAdmin(!isAdmin)}
+                                className={`rounded-full px-4 py-2 text-xs font-bold transition ${isAdmin
+                                        ? "border border-purple-300 bg-purple-100 text-purple-900 shadow-2xs"
+                                        : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                    }`}
+                            >
+                                {isAdmin ? "✓ प्रशासक मोड सुरू (Admin Active)" : "⚙️ प्रशासक दृश्य (Admin View)"}
+                            </button>
+
+                            {/* Host Tournament Button: Visible ONLY in Admin Mode */}
+                            {isAdmin && (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCreateModalOpen(true)}
+                                    className="inline-flex items-center gap-2 rounded-full bg-[#5E428F] px-5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-[#4C3375]"
+                                >
+                                    <span>🏆</span>
+                                    <span>+ नवीन स्पर्धा आयोजित करा (Host Tournament)</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-3 flex-wrap">
-                    <Link
-                        href="/"
-                        className="px-5 py-2.5 rounded-full bg-white border border-gray-300 text-xs font-bold text-gray-800 hover:bg-gray-50 shadow-sm transition-all"
-                    >
-                        मुख्य पोर्टल (Home)
-                    </Link>
-
-                    {/* Admin Tournament Host Trigger */}
-                    <CreateTournamentModal districts={districts} />
-                </div>
-            </div>
-
-            {/* Tournaments Grid */}
-            {tournaments.length === 0 ? (
-                <div className="bg-white rounded-[32px] border border-dashed border-gray-300 p-12 text-center text-xs text-gray-400 space-y-3">
-                    <p className="font-bold text-base text-gray-700">अद्याप कोणतीही स्पर्धा आयोजित केलेली नाही.</p>
-                    <p>नवीन स्पर्धा सुरू करण्यासाठी वरील <strong>"+ नवीन स्पर्धा आयोजित करा"</strong> बटणावर क्लिक करा.</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {tournaments.map((t: any) => (
+                {/* Tournaments Grid */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    {tournaments.map((tournament) => (
                         <div
-                            key={t.id}
-                            className="bg-white rounded-[32px] border border-[#CAC4D0]/60 p-6 md:p-8 flex flex-col justify-between space-y-6 shadow-sm hover:border-[#6750A4] transition-all relative"
+                            key={tournament.id}
+                            className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md"
                         >
-                            <div className="space-y-3">
-                                {/* Top Status & Delete Bar */}
-                                <div className="flex justify-between items-center text-xs">
-                                    <div className="flex items-center gap-2">
-                                        <span
-                                            className={`px-3 py-1 rounded-full font-bold border ${t.status === 'ACTIVE'
-                                                ? 'bg-green-50 text-green-800 border-green-200'
-                                                : 'bg-purple-50 text-[#6750A4] border-purple-200'
-                                                }`}
-                                        >
-                                            ● {t.status === 'ACTIVE' ? 'नोंदणी सुरू (REGISTRATION OPEN)' : 'आगामी स्पर्धा (UPCOMING)'}
+                            <div>
+                                {/* Top Row: Status, Category & Custom Delete Icon */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="rounded-full border border-purple-200/70 bg-purple-50/80 px-3 py-1 text-xs font-semibold text-purple-900">
+                                            • आगामी स्पर्धा (UPCOMING)
                                         </span>
-                                        <span className="font-mono font-bold text-xs bg-gray-100 text-gray-800 px-3 py-1 rounded-full border">
-                                            {t.category === 'SENIOR'
-                                                ? 'वरिष्ठ गट'
-                                                : t.category === 'SUB_JUNIOR'
-                                                    ? 'सब-ज्युनिअर'
-                                                    : 'ज्युनिअर'}
+                                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                                            {tournament.category || "वरिष्ठ गट"}
                                         </span>
                                     </div>
 
-                                    {/* Secure 2FA Delete Trigger */}
-                                    <DeleteTournamentModal
-                                        tournamentId={t.id}
-                                        tournamentName={t.name_mr || t.name_en}
-                                    />
+                                    {/* Custom Delete Icon: Rendered ONLY in Admin Mode */}
+                                    {isAdmin && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDeleteClick(tournament)}
+                                            title="स्पर्धा हटवा (Delete Tournament)"
+                                            className="group rounded-xl p-1.5 transition hover:bg-red-50 focus:outline-hidden"
+                                        >
+                                            <Image
+                                                src="/delete-icon.png"
+                                                alt="Delete Tournament"
+                                                width={28}
+                                                height={28}
+                                                className="h-7 w-7 object-contain transition-transform group-hover:scale-110"
+                                            />
+                                        </button>
+                                    )}
                                 </div>
 
-                                <h2 className="text-lg md:text-xl font-black text-gray-900 leading-snug">
-                                    {t.name_mr}
+                                {/* Tournament Titles */}
+                                <h2 className="mt-4 text-lg font-bold leading-snug text-gray-900">
+                                    {tournament.name_mr}
                                 </h2>
-                                <p className="text-xs text-gray-500 font-medium">{t.name_en}</p>
+                                <p className="mt-1 text-xs font-medium text-gray-500">
+                                    {tournament.name_en}
+                                </p>
 
-                                {/* Metadata Details with Registration Deadline */}
-                                <div className="pt-3 border-t border-gray-100 text-xs text-gray-700 space-y-2">
-                                    <div>
-                                        📅 <span className="text-gray-500">स्पर्धा कालावधी: </span>
-                                        <strong className="text-gray-900">
-                                            {new Date(t.start_date).toLocaleDateString('en-IN')} ते{' '}
-                                            {new Date(t.end_date).toLocaleDateString('en-IN')}
-                                        </strong>
+                                {/* Details List */}
+                                <div className="mt-5 space-y-2 text-xs text-gray-700">
+                                    <div className="flex items-center gap-2">
+                                        <span>🗓️</span>
+                                        <span>
+                                            <strong className="text-gray-900">स्पर्धा कालावधी:</strong>{" "}
+                                            {tournament.start_date || "5/12/2026"} ते {tournament.end_date || "8/12/2026"}
+                                        </span>
                                     </div>
-
-                                    {t.registration_deadline ? (
-                                        <div className="flex items-center gap-1.5 bg-red-50 text-red-700 px-3 py-1.5 rounded-xl border border-red-200 w-fit">
-                                            <span>⏳</span>
-                                            <span className="font-semibold">नोंदणी अंतिम मुदत:</span>
-                                            <strong className="font-mono font-bold">
-                                                {new Date(t.registration_deadline).toLocaleDateString('en-IN')}
-                                            </strong>
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            ⏳ <span className="text-gray-500">नोंदणी अंतिम मुदत: </span>
-                                            <span className="text-gray-400 font-medium">खुली (Open)</span>
-                                        </div>
-                                    )}
-
-                                    <div>
-                                        📍 <span className="text-gray-500">यजमान जिल्हा व मैदान: </span>
-                                        <strong className="text-gray-900">
-                                            {t.venue_district?.name_mr} • {t.venue_ground}
-                                        </strong>
+                                    <div className="flex items-center gap-2">
+                                        <span>⏳</span>
+                                        <span>
+                                            <strong className="text-gray-900">नोंदणी अंतिम मुदत:</strong>{" "}
+                                            {tournament.registration_deadline || "खुली (Open)"}
+                                        </span>
                                     </div>
-
-                                    <div>
-                                        👥 <span className="text-gray-500">संघ निकष: </span>
-                                        <strong>किमान १२ - कमाल १५ खेळाडू</strong>
+                                    <div className="flex items-center gap-2">
+                                        <span>📍</span>
+                                        <span>
+                                            <strong className="text-gray-900">यजमान जिल्हा व मैदान:</strong>{" "}
+                                            {tournament.venue || tournament.venue_mr || "ठाणे • छत्रपती शिवाजी महाराज स्टेडियम, ठाणे"}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span>👥</span>
+                                        <span>
+                                            <strong className="text-gray-900">संघ निकष:</strong> किमान{" "}
+                                            {tournament.min_players || 12} - कमाल {tournament.max_players || 15} खेळाडू
+                                        </span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3 pt-2">
+                            {/* Public Action Buttons */}
+                            <div className="mt-6 flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
                                 <Link
-                                    href={`/tournaments/${t.id}`}
-                                    className="text-center py-2.5 rounded-full border border-[#6750A4] text-[#6750A4] text-xs font-bold hover:bg-purple-50 transition-all"
+                                    href={`/tournaments/${tournament.id}`}
+                                    className="w-full rounded-full border border-purple-200 bg-white py-2.5 text-center text-xs font-bold text-purple-900 transition hover:bg-purple-50 sm:w-1/2"
                                 >
                                     स्पर्धा केंद्र व दाखल संघ
                                 </Link>
                                 <Link
-                                    href={`/tournaments/${t.id}/squad-entry`}
-                                    className="text-center py-2.5 rounded-full bg-[#6750A4] text-white text-xs font-bold hover:bg-[#523e85] transition-all shadow-sm"
+                                    href={`/tournaments/${tournament.id}/squad-entry`}
+                                    className="w-full rounded-full bg-[#5E428F] py-2.5 text-center text-xs font-bold text-white shadow-xs transition hover:bg-[#4C3375] sm:w-1/2"
                                 >
                                     संघ दाखल करा →
                                 </Link>
@@ -155,24 +246,37 @@ async function TournamentsList() {
                         </div>
                     ))}
                 </div>
-            )}
+
+                {/* Modals */}
+                <CreateTournamentModal
+                    isOpen={isCreateModalOpen}
+                    onClose={() => setIsCreateModalOpen(false)}
+                    onSuccess={fetchTournaments}
+                    onTournamentCreated={fetchTournaments}
+                />
+
+                <DeleteTournamentModal
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => {
+                        setIsDeleteModalOpen(false);
+                        setSelectedTournament(null);
+                    }}
+                    tournament={selectedTournament}
+                    tournamentId={selectedTournament?.id}
+                    tournamentName={selectedTournament?.name_mr}
+                    onSuccess={fetchTournaments}
+                    onDeleted={fetchTournaments}
+                />
+
+            </main>
         </div>
     );
 }
 
 export default function TournamentsPage() {
     return (
-        <div className="min-h-screen bg-[#FDF8FD] text-[#1C1B1F] p-4 md:p-8">
-            <Suspense
-                fallback={
-                    <div className="min-h-[50vh] flex flex-col items-center justify-center text-[#6750A4]">
-                        <div className="w-10 h-10 border-4 border-[#6750A4] border-t-transparent rounded-full animate-spin mb-4" />
-                        <p className="font-bold text-sm">स्पर्धा यादी लोड होत आहे...</p>
-                    </div>
-                }
-            >
-                <TournamentsList />
-            </Suspense>
-        </div>
+        <Suspense fallback={<div className="p-8 text-center text-xs text-gray-500">लोड होत आहे...</div>}>
+            <TournamentsContent />
+        </Suspense>
     );
 }
