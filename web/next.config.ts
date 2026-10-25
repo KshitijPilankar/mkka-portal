@@ -5,6 +5,14 @@ const nextConfig: NextConfig = {
     // Production build ke time strict TypeScript check ko bypass karega
     ignoreBuildErrors: true,
   },
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
 };
 
 export default nextConfig;
