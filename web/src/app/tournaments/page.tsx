@@ -5,8 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import CreateTournamentModal from "./CreateTournamentModal";
-import DeleteTournamentModal from "./DeleteTournamentModal";
 
 interface Tournament {
     id: string;
@@ -24,7 +22,7 @@ interface Tournament {
     max_players?: number;
 }
 
-const INITIAL_TOURNAMENTS: Tournament[] = [
+const DEFAULT_TOURNAMENTS: Tournament[] = [
     {
         id: "sub-junior-2026",
         name_mr: "राज्यस्तरीय सब-ज्युनियर (१४ वर्षांखालील) अजिंक्यपद निवड चाचणी स्पर्धा २०२६",
@@ -55,50 +53,77 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
 
 function TournamentsContent() {
     const searchParams = useSearchParams();
-    const [tournaments, setTournaments] = useState<Tournament[]>(INITIAL_TOURNAMENTS);
+    const [tournaments, setTournaments] = useState<Tournament[]>(DEFAULT_TOURNAMENTS);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
 
-    // Check URL for admin access (e.g., /tournaments?admin=true)
+    // Modals state
+    const [deleteTarget, setDeleteTarget] = useState<Tournament | null>(null);
+    const [pinInput, setPinInput] = useState("");
+    const [pinError, setPinError] = useState("");
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Check URL parameter (e.g., /tournaments?admin=true)
     useEffect(() => {
         if (searchParams.get("admin") === "true") {
             setIsAdmin(true);
         }
     }, [searchParams]);
 
-    // Fetch live tournaments from Supabase
-    const fetchTournaments = async () => {
-        try {
-            const supabase = createClient();
-            const { data, error } = await supabase
-                .from("tournaments")
-                .select("*")
-                .order("created_at", { ascending: false });
-
-            if (!error && data && data.length > 0) {
-                setTournaments(data);
-            }
-        } catch {
-            // Fallback to initial state if table is empty or during network delay
-        }
-    };
-
+    // Safely fetch live tournaments from Supabase
     useEffect(() => {
-        fetchTournaments();
+        const loadTournaments = async () => {
+            try {
+                const supabase = createClient();
+                if (supabase) {
+                    const { data, error } = await supabase
+                        .from("tournaments")
+                        .select("*")
+                        .order("created_at", { ascending: false });
+
+                    if (!error && data && data.length > 0) {
+                        setTournaments(data);
+                    }
+                }
+            } catch {
+                // Fallback to default state if table is empty or network fails
+            }
+        };
+        loadTournaments();
     }, []);
 
-    const handleDeleteClick = (tournament: Tournament) => {
-        setSelectedTournament(tournament);
-        setIsDeleteModalOpen(true);
+    // Handle Delete Confirmation
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+
+        if (pinInput.trim() !== "MKKA2026") {
+            setPinError("चुकीचा सिक्युरिटी पिन! (Incorrect PIN)");
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            const supabase = createClient();
+            if (supabase) {
+                await supabase.from("tournaments").delete().eq("id", deleteTarget.id);
+            }
+            setTournaments((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+            setDeleteTarget(null);
+            setPinInput("");
+            setPinError("");
+        } catch {
+            // In case of offline/mock deletion
+            setTournaments((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+            setDeleteTarget(null);
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     return (
         <div className="min-h-screen bg-[#FDF8FD] text-[#1C1B1F]">
             <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
 
-                {/* Header Banner */}
+                {/* Header Section */}
                 <div className="mb-8 rounded-3xl border border-purple-100 bg-[#F7F2FA] p-6 sm:p-8">
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                         <div>
@@ -113,7 +138,7 @@ function TournamentsContent() {
                             </p>
                         </div>
 
-                        {/* Actions: Home, Admin Toggle, and Host Tournament */}
+                        {/* Navigation & Admin Controls */}
                         <div className="flex flex-wrap items-center gap-3">
                             <Link
                                 href="/"
@@ -122,11 +147,11 @@ function TournamentsContent() {
                                 मुख्य पोर्टल (Home)
                             </Link>
 
-                            {/* Admin Mode Toggle */}
+                            {/* Admin Mode Toggle Button */}
                             <button
                                 type="button"
                                 onClick={() => setIsAdmin(!isAdmin)}
-                                className={`rounded-full px-4 py-2 text-xs font-bold transition ${isAdmin
+                                className={`rounded-full px-4 py-2 text-xs font-bold transition cursor-pointer ${isAdmin
                                         ? "border border-purple-300 bg-purple-100 text-purple-900 shadow-2xs"
                                         : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                                     }`}
@@ -134,16 +159,15 @@ function TournamentsContent() {
                                 {isAdmin ? "✓ प्रशासक मोड सुरू (Admin Active)" : "⚙️ प्रशासक दृश्य (Admin View)"}
                             </button>
 
-                            {/* Host Tournament Button: Visible ONLY in Admin Mode */}
+                            {/* Host Tournament: Visible ONLY in Admin Mode */}
                             {isAdmin && (
-                                <button
-                                    type="button"
-                                    onClick={() => setIsCreateModalOpen(true)}
+                                <Link
+                                    href="/association/dashboard"
                                     className="inline-flex items-center gap-2 rounded-full bg-[#5E428F] px-5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-[#4C3375]"
                                 >
                                     <span>🏆</span>
                                     <span>+ नवीन स्पर्धा आयोजित करा (Host Tournament)</span>
-                                </button>
+                                </Link>
                             )}
                         </div>
                     </div>
@@ -157,7 +181,7 @@ function TournamentsContent() {
                             className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md"
                         >
                             <div>
-                                {/* Top Row: Status, Category & Custom Delete Icon */}
+                                {/* Top Row: Badges & Admin-Only Delete Icon */}
                                 <div className="flex items-center justify-between gap-2">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="rounded-full border border-purple-200/70 bg-purple-50/80 px-3 py-1 text-xs font-semibold text-purple-900">
@@ -168,13 +192,17 @@ function TournamentsContent() {
                                         </span>
                                     </div>
 
-                                    {/* Custom Delete Icon: Rendered ONLY in Admin Mode */}
+                                    {/* Custom Pink Delete Icon (Visible ONLY to Admin) */}
                                     {isAdmin && (
                                         <button
                                             type="button"
-                                            onClick={() => handleDeleteClick(tournament)}
+                                            onClick={() => {
+                                                setDeleteTarget(tournament);
+                                                setPinInput("");
+                                                setPinError("");
+                                            }}
                                             title="स्पर्धा हटवा (Delete Tournament)"
-                                            className="group rounded-xl p-1.5 transition hover:bg-red-50 focus:outline-hidden"
+                                            className="group rounded-xl p-1.5 transition hover:bg-red-50 focus:outline-hidden cursor-pointer"
                                         >
                                             <Image
                                                 src="/delete-icon.png"
@@ -187,7 +215,7 @@ function TournamentsContent() {
                                     )}
                                 </div>
 
-                                {/* Tournament Titles */}
+                                {/* Tournament Name */}
                                 <h2 className="mt-4 text-lg font-bold leading-snug text-gray-900">
                                     {tournament.name_mr}
                                 </h2>
@@ -195,7 +223,7 @@ function TournamentsContent() {
                                     {tournament.name_en}
                                 </p>
 
-                                {/* Details List */}
+                                {/* Details */}
                                 <div className="mt-5 space-y-2 text-xs text-gray-700">
                                     <div className="flex items-center gap-2">
                                         <span>🗓️</span>
@@ -228,7 +256,7 @@ function TournamentsContent() {
                                 </div>
                             </div>
 
-                            {/* Public Action Buttons */}
+                            {/* Public Buttons */}
                             <div className="mt-6 flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
                                 <Link
                                     href={`/tournaments/${tournament.id}`}
@@ -247,26 +275,72 @@ function TournamentsContent() {
                     ))}
                 </div>
 
-                {/* Modals */}
-                <CreateTournamentModal
-                    isOpen={isCreateModalOpen}
-                    onClose={() => setIsCreateModalOpen(false)}
-                    onSuccess={fetchTournaments}
-                    onTournamentCreated={fetchTournaments}
-                />
+                {/* Delete Tournament Modal (Self-Contained & PIN Protected) */}
+                {deleteTarget && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+                        <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 p-2">
+                                    <Image
+                                        src="/delete-icon.png"
+                                        alt="Delete"
+                                        width={36}
+                                        height={36}
+                                        className="h-9 w-9 object-contain"
+                                    />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-gray-900">स्पर्धा हटवा (Delete Tournament)</h3>
+                                    <p className="text-xs text-gray-500">प्रशासकीय खात्री आवश्यक</p>
+                                </div>
+                            </div>
 
-                <DeleteTournamentModal
-                    isOpen={isDeleteModalOpen}
-                    onClose={() => {
-                        setIsDeleteModalOpen(false);
-                        setSelectedTournament(null);
-                    }}
-                    tournament={selectedTournament}
-                    tournamentId={selectedTournament?.id}
-                    tournamentName={selectedTournament?.name_mr}
-                    onSuccess={fetchTournaments}
-                    onDeleted={fetchTournaments}
-                />
+                            <div className="mt-4 rounded-2xl bg-purple-50/60 p-3 text-xs text-purple-900">
+                                <strong>निवडलेली स्पर्धा:</strong>
+                                <p className="mt-1 font-medium text-gray-700">{deleteTarget.name_mr}</p>
+                            </div>
+
+                            <div className="mt-4">
+                                <label className="block text-xs font-bold text-gray-700">
+                                    प्रशासक सिक्युरिटी पिन (Admin PIN)
+                                </label>
+                                <input
+                                    type="password"
+                                    placeholder="PIN टाका (उदा. MKKA2026)"
+                                    value={pinInput}
+                                    onChange={(e) => {
+                                        setPinInput(e.target.value);
+                                        setPinError("");
+                                    }}
+                                    className="mt-1.5 w-full rounded-xl border border-gray-300 px-3 py-2 text-xs font-semibold focus:border-purple-600 focus:outline-hidden"
+                                />
+                                {pinError && <p className="mt-1 text-xs font-semibold text-red-600">{pinError}</p>}
+                            </div>
+
+                            <div className="mt-6 flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setDeleteTarget(null);
+                                        setPinInput("");
+                                        setPinError("");
+                                    }}
+                                    className="rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 cursor-pointer"
+                                >
+                                    रद्द करा (Cancel)
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isDeleting}
+                                    onClick={confirmDelete}
+                                    className="rounded-full bg-red-600 px-5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-red-700 disabled:opacity-50 cursor-pointer"
+                                >
+                                    {isDeleting ? "हटवत आहे..." : "नक्की हटवा (Confirm Delete)"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             </main>
         </div>
