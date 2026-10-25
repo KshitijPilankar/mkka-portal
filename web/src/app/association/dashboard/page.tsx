@@ -17,6 +17,7 @@ interface DashboardStats {
 
 export default function AdminDashboardPage() {
     const router = useRouter();
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
     const [stats, setStats] = useState<DashboardStats>({
         totalPlayers: 25,
         approvedPlayers: 25,
@@ -26,18 +27,34 @@ export default function AdminDashboardPage() {
         activeTournaments: 2,
     });
 
-    // Supabase se live numbers load karna
+    // Strict Auth Guard: Redirect to login if session does not exist
     useEffect(() => {
+        const checkAuth = () => {
+            const localSession = typeof window !== "undefined" ? localStorage.getItem("mkka_admin_auth") : null;
+            const cookieSession = typeof document !== "undefined" && document.cookie.includes("mkka_admin_auth=true");
+
+            if (localSession === "true" || cookieSession) {
+                setIsAuthenticated(true);
+            } else {
+                setIsAuthenticated(false);
+                router.replace("/association/login");
+            }
+        };
+
+        checkAuth();
+    }, [router]);
+
+    // Load stats from Supabase only after successful authentication
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
         const fetchStats = async () => {
             try {
                 const supabase = createClient();
                 if (!supabase) return;
 
-                // Players counts
                 const { data: players } = await supabase.from("players").select("status");
-                // Referees counts
                 const { data: referees } = await supabase.from("referees").select("status");
-                // Tournaments counts
                 const { data: tournaments } = await supabase.from("tournaments").select("id");
 
                 if (players || referees || tournaments) {
@@ -60,17 +77,38 @@ export default function AdminDashboardPage() {
                     });
                 }
             } catch {
-                // Fallback to default state
+                // Fallback
             }
         };
 
         fetchStats();
-    }, []);
+    }, [isAuthenticated]);
 
+    // Complete Session Wipe on Logout
     const handleLogout = () => {
-        // Session clear karke login page par bhej dena
-        router.push("/association/login");
+        if (typeof window !== "undefined") {
+            localStorage.removeItem("mkka_admin_auth");
+            document.cookie = "mkka_admin_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
+        }
+        setIsAuthenticated(false);
+        router.replace("/association/login");
     };
+
+    // Prevent flash of protected dashboard before auth check completes
+    if (isAuthenticated === null) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-[#FDF8FD]">
+                <div className="text-center">
+                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-800 border-r-transparent"></div>
+                    <p className="mt-3 text-xs font-bold text-gray-600">प्रशासक पडताळणी सुरू आहे... (Verifying Auth)</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return null;
+    }
 
     return (
         <div className="min-h-screen bg-[#FDF8FD] text-[#1C1B1F]">
@@ -125,7 +163,6 @@ export default function AdminDashboardPage() {
                 {/* 4 Overview Statistics Cards */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
-                    {/* Stat 1: Registered Players */}
                     <div className="rounded-3xl border border-purple-100 bg-white p-5 shadow-xs">
                         <p className="text-xs font-semibold text-gray-500">एकूण नोंदणीकृत खेळाडू</p>
                         <p className="mt-2 text-3xl font-extrabold text-purple-900">{stats.totalPlayers}</p>
@@ -134,14 +171,12 @@ export default function AdminDashboardPage() {
                         </p>
                     </div>
 
-                    {/* Stat 2: Pending Approvals */}
                     <div className="rounded-3xl border border-amber-200 bg-white p-5 shadow-xs">
                         <p className="text-xs font-semibold text-amber-800">खेळाडू छाननी प्रलंबित</p>
                         <p className="mt-2 text-3xl font-extrabold text-amber-600">{stats.pendingPlayers}</p>
                         <p className="mt-2 text-xs font-medium text-gray-500">पडताळणी बाकी अर्ज</p>
                     </div>
 
-                    {/* Stat 3: Referees */}
                     <div className="rounded-3xl border border-purple-100 bg-white p-5 shadow-xs">
                         <p className="text-xs font-semibold text-gray-500">अधिकृत पंच व परीक्षक</p>
                         <p className="mt-2 text-3xl font-extrabold text-purple-900">{stats.totalReferees}</p>
@@ -150,7 +185,6 @@ export default function AdminDashboardPage() {
                         </p>
                     </div>
 
-                    {/* Stat 4: Active Tournaments */}
                     <div className="rounded-3xl border border-purple-100 bg-white p-5 shadow-xs">
                         <p className="text-xs font-semibold text-gray-500">राज्य स्पर्धा सत्र</p>
                         <p className="mt-2 text-3xl font-extrabold text-purple-900">{stats.activeTournaments}</p>
@@ -162,7 +196,6 @@ export default function AdminDashboardPage() {
                 {/* 3 Main Admin Operations Cards */}
                 <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
 
-                    {/* Action 1: Player Scrutiny Hub */}
                     <div className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md">
                         <div>
                             <span className="text-3xl">🏃</span>
@@ -179,7 +212,6 @@ export default function AdminDashboardPage() {
                         </Link>
                     </div>
 
-                    {/* Action 2: Referee Verification */}
                     <div className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md">
                         <div>
                             <span className="text-3xl">⚖️</span>
@@ -196,7 +228,6 @@ export default function AdminDashboardPage() {
                         </Link>
                     </div>
 
-                    {/* Action 3: Tournaments Management Portal (Updated to /association/tournaments) */}
                     <div className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md">
                         <div>
                             <span className="text-3xl">🏆</span>
@@ -215,7 +246,6 @@ export default function AdminDashboardPage() {
 
                 </div>
 
-                {/* Bottom System Footer Info */}
                 <div className="mt-12 text-center text-xs text-gray-500">
                     <p>महाराष्ट्र राज्य खो-खो असोसिएशन (MKKA) • अधिकृत प्रशासकीय डिजिटल प्रणाली सत्र २०२६-२७</p>
                 </div>
