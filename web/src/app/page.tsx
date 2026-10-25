@@ -11,8 +11,9 @@ export default function HomePage() {
             <span>सत्र २०२६-२७ अधिकृत सभासदत्व नोंदणी • ३६ जिल्हे</span>
           </div>
 
-          <h1 className="mt-8 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
-            खेळ महाराष्ट्राचा, <br />
+          {/* Heading with gap fix to prevent overlap */}
+          <h1 className="mt-8 flex flex-col items-center gap-2 text-3xl font-extrabold text-gray-900 sm:text-5xl md:text-6xl sm:gap-3 leading-normal">
+            <span>खेळ महाराष्ट्राचा,</span>
             <span className="text-purple-800">मान अधिकृत ओळखीचा!</span>
           </h1>
 
