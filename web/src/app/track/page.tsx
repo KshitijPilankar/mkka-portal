@@ -4,6 +4,22 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getEntityStatusAction } from '@/app/actions/track-player';
 
+// Helper: Mask Aadhaar number to protect player/referee identity (OWASP PII Standard)
+function maskAadhaar(val?: string | null): string {
+    if (!val) return '-';
+    const clean = val.toString().replace(/\s|-/g, '');
+    if (clean.length < 4) return 'XXXX-XXXX-XXXX';
+    return `XXXX-XXXX-${clean.slice(-4)}`;
+}
+
+// Helper: Mask Phone number
+function maskMobile(val?: string | null): string {
+    if (!val) return '-';
+    const clean = val.toString().replace(/\s|-/g, '');
+    if (clean.length < 4) return 'XXXXX-XXXXX';
+    return `XXXXX-XX${clean.slice(-3)}`;
+}
+
 function TrackContent() {
     const searchParams = useSearchParams();
     const initialQuery = searchParams.get('query') || '';
@@ -34,7 +50,7 @@ function TrackContent() {
         setLoading(false);
 
         if (!res.success || !res.data) {
-            setErrorMsg(res.error || 'कोणतीही नोंद आढळली नाही');
+            setErrorMsg(res.error || 'कोणतीही नोंद आढळली नाही (No record found)');
         } else {
             setResult({ type: res.type as 'PLAYER' | 'REFEREE', data: res.data });
         }
@@ -80,7 +96,7 @@ function TrackContent() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="px-8 py-3.5 rounded-full bg-[#6750A4] text-white font-medium text-sm transition-all hover:bg-[#523e85] active:scale-95 disabled:opacity-50 shadow-sm"
+                        className="px-8 py-3.5 rounded-full bg-[#6750A4] text-white font-medium text-sm transition-all hover:bg-[#523e85] active:scale-95 disabled:opacity-50 shadow-sm cursor-pointer"
                     >
                         {loading ? 'शोधत आहे...' : 'शोधा / Search'}
                     </button>
@@ -103,7 +119,7 @@ function TrackContent() {
                                 {isReferee ? 'पंच अर्ज स्थिती' : 'खेळाडू अर्ज स्थिती'}
                             </span>
                             <span className={`inline-block mt-1 px-4 py-1 rounded-full text-xs font-bold ${entity.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                                    entity.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+                                entity.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
                                 }`}>
                                 ● {entity.status === 'APPROVED' ? 'मान्यताप्राप्त अधिकृत नोंदणी (APPROVED)' :
                                     entity.status === 'REJECTED' ? 'नाकारले (REJECTED)' : 'छाननी प्रलंबित (PENDING)'}
@@ -113,7 +129,7 @@ function TrackContent() {
                         {entity.status === 'APPROVED' && (
                             <button
                                 onClick={() => window.print()}
-                                className="px-5 py-2 rounded-full border border-[#6750A4] text-[#6750A4] text-xs font-bold hover:bg-[#6750A4]/10 transition-all flex items-center gap-1.5"
+                                className="px-5 py-2 rounded-full border border-[#6750A4] text-[#6750A4] text-xs font-bold hover:bg-[#6750A4]/10 transition-all flex items-center gap-1.5 cursor-pointer"
                             >
                                 🖨️ कार्ड प्रिंट करा (Print Pass)
                             </button>
@@ -123,8 +139,8 @@ function TrackContent() {
                     {/* Official Digital ID Card with QR */}
                     {entity.status === 'APPROVED' ? (
                         <div className={`border-2 rounded-3xl p-6 relative overflow-hidden shadow-md ${isReferee
-                                ? 'border-[#8B5000] bg-gradient-to-br from-[#FFF8F2] via-white to-[#FFDDB6]/30'
-                                : 'border-[#6750A4] bg-gradient-to-br from-[#F3EDF7] via-white to-[#EADDFF]/30'
+                            ? 'border-[#8B5000] bg-gradient-to-br from-[#FFF8F2] via-white to-[#FFDDB6]/30'
+                            : 'border-[#6750A4] bg-gradient-to-br from-[#F3EDF7] via-white to-[#EADDFF]/30'
                             }`}>
                             {/* Badge */}
                             <div className={`absolute top-0 right-0 text-white text-[10px] font-bold px-4 py-1 rounded-bl-2xl uppercase tracking-wider ${isReferee ? 'bg-[#8B5000]' : 'bg-[#6750A4]'
@@ -136,8 +152,12 @@ function TrackContent() {
                                 {/* Photo */}
                                 <div className="w-28 h-36 bg-gray-200 rounded-2xl overflow-hidden border-2 border-white shadow-sm shrink-0">
                                     <img
-                                        src={`${supabaseUrl}/storage/v1/object/public/player-documents/${entity.photo_path}`}
-                                        alt={entity.first_name}
+                                        src={
+                                            entity.photo_path
+                                                ? `${supabaseUrl}/storage/v1/object/public/player-documents/${entity.photo_path}`
+                                                : '/mkka-logo.png'
+                                        }
+                                        alt={entity.first_name || 'MKKA Member'}
                                         className="w-full h-full object-cover"
                                     />
                                 </div>
@@ -157,24 +177,44 @@ function TrackContent() {
                                             <span className="font-semibold block text-[#1C1B1F]">
                                                 {isReferee ? 'संलग्न जिल्हा:' : 'खेळणारा जिल्हा:'}
                                             </span>
-                                            {entity.district?.name_mr} ({entity.district?.name_en})
+                                            {entity.district?.name_mr || entity.district?.name_en || '-'}
                                         </div>
                                         <div>
                                             <span className="font-semibold block text-[#1C1B1F]">
                                                 {isReferee ? 'पंच श्रेणी (Grade):' : 'जन्मतारीख:'}
                                             </span>
-                                            {isReferee ? entity.referee_grade : entity.dob}
+                                            {isReferee ? entity.referee_grade : (entity.dob || '-')}
                                         </div>
                                         <div>
                                             <span className="font-semibold block text-[#1C1B1F]">
                                                 {isReferee ? 'अनुभव (Experience):' : 'लिंग:'}
                                             </span>
-                                            {isReferee ? `${entity.experience_years} वर्षे` : (entity.gender === 'MALE' ? 'पुरुष' : 'महिला')}
+                                            {isReferee ? `${entity.experience_years || 0} वर्षे` : (entity.gender === 'MALE' ? 'पुरुष' : 'महिला')}
                                         </div>
                                         <div>
                                             <span className="font-semibold block text-[#1C1B1F]">मान्यता दिनांक:</span>
                                             {entity.approved_at ? new Date(entity.approved_at).toLocaleDateString('en-IN') : '-'}
                                         </div>
+
+                                        {/* Masked Sensitive Aadhaar Field (Cloudflare Audit Patch 4) */}
+                                        {entity.aadhaar_number && (
+                                            <div>
+                                                <span className="font-semibold block text-[#1C1B1F]">आधार (Aadhaar):</span>
+                                                <span className="font-mono text-gray-700 tracking-wider">
+                                                    {maskAadhaar(entity.aadhaar_number)}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {/* Masked Mobile Field */}
+                                        {entity.mobile_number && (
+                                            <div>
+                                                <span className="font-semibold block text-[#1C1B1F]">संपर्क (Contact):</span>
+                                                <span className="font-mono text-gray-700">
+                                                    {maskMobile(entity.mobile_number)}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
