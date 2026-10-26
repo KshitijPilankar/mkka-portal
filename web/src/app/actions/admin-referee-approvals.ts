@@ -2,10 +2,27 @@
 
 import { createServerSupabase } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
+
+// Server-side session verification helper (Security Audit Patch 3)
+async function verifyAdminSession(): Promise<boolean> {
+    const cookieStore = await cookies();
+    const authCookie = cookieStore.get('mkka_admin_auth')?.value;
+    return authCookie === 'authenticated_mkka_admin_2026';
+}
 
 // Approve Referee Action (Generates MKKA-REF-2026-XXX ID)
 export async function approveRefereeAction(refereeId: string, districtCode: string) {
     try {
+        // Enforce Server-Side Admin Session Guard
+        const isAuthorized = await verifyAdminSession();
+        if (!isAuthorized) {
+            return {
+                success: false,
+                error: 'अनधिकृत प्रवेश! प्रशासक लॉगिन आवश्यक आहे. (Unauthorized: Admin session required)',
+            };
+        }
+
         const supabase = await createServerSupabase();
 
         const randomDigits = Math.floor(1000 + Math.random() * 9000);
@@ -33,6 +50,15 @@ export async function approveRefereeAction(refereeId: string, districtCode: stri
 // Reject Referee Action
 export async function rejectRefereeAction(refereeId: string, reason: string) {
     try {
+        // Enforce Server-Side Admin Session Guard
+        const isAuthorized = await verifyAdminSession();
+        if (!isAuthorized) {
+            return {
+                success: false,
+                error: 'अनधिकृत प्रवेश! प्रशासक लॉगिन आवश्यक आहे. (Unauthorized: Admin session required)',
+            };
+        }
+
         const supabase = await createServerSupabase();
 
         const { error } = await supabase
