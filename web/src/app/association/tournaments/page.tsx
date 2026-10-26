@@ -134,24 +134,28 @@ export default function AdminTournamentsPage() {
     const confirmDelete = async () => {
         if (!deleteTarget) return;
 
-        if (pinInput.trim() !== "MKKA2026") {
-            setPinError("चुकीचा सिक्युरिटी पिन! (Incorrect PIN)");
-            return;
-        }
-
         setIsDeleting(true);
         try {
-            const supabase = createClient();
-            if (supabase) {
-                await supabase.from("tournaments").delete().eq("id", deleteTarget.id);
+            const { deleteTournamentAction } = await import('@/app/actions/tournament-actions');
+            const res = await deleteTournamentAction({
+                tournamentId: deleteTarget.id,
+                adminPin: pinInput.trim(),
+                confirmName: deleteTarget.name_mr,
+                expectedName: deleteTarget.name_mr,
+            });
+
+            if (!res.success) {
+                setPinError(res.error || 'स्पर्धा हटवता आली नाही (Deletion failed)');
+                setIsDeleting(false);
+                return;
             }
+
             setTournaments((prev) => prev.filter((t) => t.id !== deleteTarget.id));
             setDeleteTarget(null);
             setPinInput("");
             setPinError("");
         } catch {
-            setTournaments((prev) => prev.filter((t) => t.id !== deleteTarget.id));
-            setDeleteTarget(null);
+            setPinError('सर्व्हर त्रुटी (Server error occurred)');
         } finally {
             setIsDeleting(false);
         }
@@ -420,7 +424,7 @@ export default function AdminTournamentsPage() {
                                 </label>
                                 <input
                                     type="password"
-                                    placeholder="PIN टाका (उदा. MKKA2026)"
+                                    placeholder="सुरक्षा पिन टाका"
                                     value={pinInput}
                                     onChange={(e) => {
                                         setPinInput(e.target.value);

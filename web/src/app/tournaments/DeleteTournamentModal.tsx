@@ -123,7 +123,7 @@ export default function DeleteTournamentModal({ tournamentId, tournamentName }: 
                                 <input
                                     type="password"
                                     required
-                                    placeholder="सुरक्षा पिन टाका (Default: MKKA2026)"
+                                    placeholder="सुरक्षा पिन टाका"
                                     value={adminPin}
                                     onChange={(e) => setAdminPin(e.target.value)}
                                     className="w-full h-10 px-3 rounded-xl border border-gray-300 outline-none focus:border-red-500 bg-[#FDF8FD] font-mono tracking-widest"

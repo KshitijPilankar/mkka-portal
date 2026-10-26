@@ -2,6 +2,20 @@
 
 import { createServerSupabase } from '@/lib/supabase/server';
 
+function maskAadhaar(val?: string | null): string {
+    if (!val) return '';
+    const clean = val.toString().replace(/\s|-/g, '');
+    if (clean.length < 4) return 'XXXX-XXXX-XXXX';
+    return `XXXX-XXXX-${clean.slice(-4)}`;
+}
+
+function maskMobile(val?: string | null): string {
+    if (!val) return '';
+    const clean = val.toString().replace(/\s|-/g, '');
+    if (clean.length < 4) return 'XXXXX-XXXXX';
+    return `XXXXX-XX${clean.slice(-3)}`;
+}
+
 export async function getEntityStatusAction(searchQuery: string) {
     try {
         const supabase = await createServerSupabase();
@@ -43,7 +57,13 @@ export async function getEntityStatusAction(searchQuery: string) {
         const { data: playerData } = await playerQuery.maybeSingle();
 
         if (playerData) {
-            return { success: true, type: 'PLAYER', data: playerData };
+            // Mask PII at the server boundary before network transmission
+            const safePlayerData = {
+                ...playerData,
+                aadhar_no: maskAadhaar(playerData.aadhar_no),
+                mobile_no: maskMobile(playerData.mobile_no),
+            };
+            return { success: true, type: 'PLAYER', data: safePlayerData };
         }
 
         // 2. Check Referees table
@@ -95,10 +115,18 @@ export async function getEntityStatusAction(searchQuery: string) {
                 districtInfo = dist;
             }
 
+            // Mask PII at the server boundary before network transmission
+            const safeRefereeData = {
+                ...refereeData,
+                aadhar_no: maskAadhaar(refereeData.aadhar_no),
+                mobile_no: maskMobile(refereeData.mobile_no),
+                district: districtInfo,
+            };
+
             return {
                 success: true,
                 type: 'REFEREE',
-                data: { ...refereeData, district: districtInfo }
+                data: safeRefereeData,
             };
         }
 
