@@ -11,21 +11,28 @@ export default function AdminLoginPage() {
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError("");
 
-        // Verify PIN
-        if (pin.trim() === "MKKA2026") {
-            // Save authenticated session in both localStorage and Cookie
-            if (typeof window !== "undefined") {
-                localStorage.setItem("mkka_admin_auth", "true");
-                document.cookie = "mkka_admin_auth=true; path=/; max-age=86400; SameSite=Lax";
+        try {
+            const res = await fetch("/api/association/auth", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pin }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                router.replace("/association/dashboard");
+            } else {
+                setError(data.message || "अवैध सुरक्षा पिन! कृपया अचूक पिन प्रविष्ट करा.");
+                setIsLoading(false);
             }
-            router.replace("/association/dashboard");
-        } else {
-            setError("अवैध सुरक्षा पिन! कृपया अचूक पिन प्रविष्ट करा. (Invalid Admin PIN)");
+        } catch {
+            setError("सर्व्हरशी संपर्क होऊ शकला नाही. पुन्हा प्रयत्न करा.");
             setIsLoading(false);
         }
     };
@@ -70,7 +77,7 @@ export default function AdminLoginPage() {
                         <input
                             type="password"
                             required
-                            placeholder="सुरक्षा पिन टाका (Default: MKKA2026)"
+                            placeholder="सुरक्षा पिन टाका"
                             value={pin}
                             onChange={(e) => {
                                 setPin(e.target.value);
@@ -97,7 +104,7 @@ export default function AdminLoginPage() {
                     <Link href="/" className="hover:text-purple-700 font-semibold">
                         ← मुख्य पोर्टलकडे परत जा
                     </Link>
-                    <span className="text-gray-400">PIN: MKKA2026</span>
+                    <span className="text-gray-400">सुरक्षित सर्व्हर प्रमाणीकरण</span>
                 </div>
 
             </div>
