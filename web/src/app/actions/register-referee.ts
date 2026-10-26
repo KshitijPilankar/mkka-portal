@@ -49,8 +49,25 @@ export async function registerRefereeAction(formData: FormData) {
             };
         }
 
+        // Strict Server-Side File Validations (Patch 5)
+        const { validateUploadedFile } = await import('@/lib/validations/file-upload');
+
+        const photoValid = validateUploadedFile(photoFile);
+        if (!photoValid.valid) return { success: false, error: `फोटो: ${photoValid.error}` };
+
+        const idValid = validateUploadedFile(idProofFile);
+        if (!idValid.valid) return { success: false, error: `ओळख पुरावा: ${idValid.error}` };
+
+        const certValid = validateUploadedFile(certificateFile);
+        if (!certValid.valid) return { success: false, error: `पंच प्रमाणपत्र: ${certValid.error}` };
+
+        const getSafeExtension = (name: string) => {
+            const rawExt = name.split('.').pop()?.toLowerCase() || 'jpg';
+            return ['jpg', 'jpeg', 'png', 'webp', 'pdf'].includes(rawExt) ? rawExt : 'jpg';
+        };
+
         const uploadDoc = async (file: File, prefix: string) => {
-            const ext = file.name.split('.').pop();
+            const ext = getSafeExtension(file.name);
             const path = `referee_${prefix}_${crypto.randomUUID()}.${ext}`;
             const buffer = Buffer.from(await file.arrayBuffer());
             const { error } = await supabase.storage.from('player-documents').upload(path, buffer, {
