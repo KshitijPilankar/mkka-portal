@@ -4,6 +4,52 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { PlayerRegistrationSchema } from '@/lib/validations/player';
 import { revalidatePath } from 'next/cache';
 
+// Allowed MIME types according to Security Audit Patch 5
+const ALLOWED_MIME_TYPES = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'application/pdf',
+];
+
+// Maximum allowed size: 2MB (2 * 1024 * 1024 bytes)
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
+
+// Server-side file validation helper
+function validateUploadedFile(file: File | null, fieldName: string, isRequired = false): { valid: boolean; error?: string } {
+    if (!file || file.size === 0) {
+        if (isRequired) {
+            return { valid: false, error: `${fieldName} अपलोड करणे अनिवार्य आहे.` };
+        }
+        return { valid: true };
+    }
+
+    // 1. File Size Validation (Max 2MB)
+    if (file.size > MAX_FILE_SIZE) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        return {
+            valid: false,
+            error: `${fieldName} चा आकार २MB पेक्षा कमी असावा. (सध्याचा आकार: ${sizeMB}MB)`,
+        };
+    }
+
+    // 2. MIME Type Whitelist Validation
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        return {
+            valid: false,
+            error: `${fieldName} केवळ JPG, PNG किंवा PDF फॉरमॅटमध्येच असावी.`,
+        };
+    }
+
+    return { valid: true };
+}
+
+// Helper to sanitize file extension
+function getSafeExtension(originalName: string): string {
+    const rawExt = originalName.split('.').pop()?.toLowerCase() || 'jpg';
+    return ['jpg', 'jpeg', 'png', 'webp', 'pdf'].includes(rawExt) ? rawExt : 'jpg';
+}
+
 export async function registerPlayerAction(formData: FormData) {
     try {
         const rawData = {
@@ -35,22 +81,50 @@ export async function registerPlayerAction(formData: FormData) {
 
         const supabase = await createServerSupabase();
 
-        // Mandatory Document Uploads Validation
-        const photoFile = formData.get('photoFile') as File;
-        const aadharFile = formData.get('aadharFile') as File;
-        const idProofFile = formData.get('idProofFile') as File;
-        const dobProofFile = formData.get('dobProofFile') as File;
+        // Extract Uploaded Files
+        const photoFile = formData.get('photoFile') as File | null;
+        const aadharFile = formData.get('aadharFile') as File | null;
+        const idProofFile = formData.get('idProofFile') as File | null;
+        const dobProofFile = formData.get('dobProofFile') as File | null;
         const otherDocFile = formData.get('otherDocFile') as File | null;
 
+        // Mandatory Document Presence Check
         if (!photoFile || !aadharFile || !idProofFile || !dobProofFile) {
             return {
                 success: false,
-                error: 'All 4 mandatory documents are required / सर्व ४ मुख्य कागदपत्रे आवश्यक आहेत'
+                error: 'All 4 mandatory documents are required / सर्व ४ मुख्य कागदपत्रे आवश्यक आहेत',
             };
         }
 
+        // Strict Server-Side File Validations (Patch 5)
+        const photoValidation = validateUploadedFile(photoFile, 'खेळाडूचा फोटो (Photo)', true);
+        if (!photoValidation.valid) {
+            return { success: false, error: photoValidation.error };
+        }
+
+        const aadharValidation = validateUploadedFile(aadharFile, 'पत्ता पुरावा / आधार (Address Proof)', true);
+        if (!aadharValidation.valid) {
+            return { success: false, error: aadharValidation.error };
+        }
+
+        const idProofValidation = validateUploadedFile(idProofFile, 'ओळख पुरावा (ID Proof)', true);
+        if (!idProofValidation.valid) {
+            return { success: false, error: idProofValidation.error };
+        }
+
+        const dobProofValidation = validateUploadedFile(dobProofFile, 'जन्म दाखला (DOB Proof)', true);
+        if (!dobProofValidation.valid) {
+            return { success: false, error: dobProofValidation.error };
+        }
+
+        const otherValidation = validateUploadedFile(otherDocFile, 'इतर कागदपत्र (Other Document)', false);
+        if (!otherValidation.valid) {
+            return { success: false, error: otherValidation.error };
+        }
+
+        // Upload Helper with Sanitized Extensions
         const uploadFile = async (file: File, prefix: string) => {
-            const ext = file.name.split('.').pop();
+            const ext = getSafeExtension(file.name);
             const path = `${prefix}_${crypto.randomUUID()}.${ext}`;
             const buffer = Buffer.from(await file.arrayBuffer());
             const { error } = await supabase.storage.from('player-documents').upload(path, buffer, {
@@ -110,6 +184,7 @@ export async function registerPlayerAction(formData: FormData) {
         return { success: false, error: err.message || 'Server error occurred' };
     }
 }
+
 // कागदावरून स्कॅन केलेल्या खेळाडूंची एकाच वेळी डेटाबेसमध्ये नोंद करणे
 export async function batchRegisterScannedPlayersAction(payload: {
     districtId: string;
@@ -127,7 +202,7 @@ export async function batchRegisterScannedPlayersAction(payload: {
         const supabase = await createServerSupabase();
 
         const currentYear = new Date().getFullYear();
-        const recordsToInsert = payload.players.map((p, idx) => {
+        const recordsToInsert = payload.players.map((p) => {
             const randomSix = Math.floor(100000 + Math.random() * 900000);
             return {
                 first_name: p.first_name.trim(),
