@@ -12,7 +12,8 @@ import {
     LogOut,
     Download,
     FileSpreadsheet,
-    Layers,
+    BellRing,
+    UserCheck,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -42,36 +43,38 @@ export default async function AssociationDashboard() {
         totalRefereesRes,
         pendingRefereesRes,
         tournamentsRes,
+        noticesRes,
     ] = await Promise.all([
         supabase.from("players").select("id", { count: "exact", head: true }),
         supabase.from("players").select("id", { count: "exact", head: true }).eq("status", "APPROVED"),
         supabase.from("players").select("id", { count: "exact", head: true }).eq("status", "PENDING_SCRUTINY"),
         supabase.from("referees").select("id", { count: "exact", head: true }),
-        supabase.from("referees").select("id", { count: "exact", head: true }).eq("status", "PENDING"),
+        supabase.from("referees").select("id", { count: "exact", head: true }).eq("status", "PENDING_SCRUTINY"),
         supabase.from("tournaments").select("id", { count: "exact", head: true }),
+        supabase.from("notices").select("id", { count: "exact", head: true }),
     ]);
 
-    const totalPlayers = totalPlayersRes.count ?? 0;
-    const approvedPlayers = approvedPlayersRes.count ?? 0;
-    const pendingPlayers = pendingPlayersRes.count ?? 0;
-    const totalReferees = totalRefereesRes.count ?? 0;
-    const pendingReferees = pendingRefereesRes.count ?? 0;
-    const activeTournaments = tournamentsRes.count ?? 0;
+    const totalPlayers = totalPlayersRes.count || 0;
+    const approvedPlayers = approvedPlayersRes.count || 0;
+    const pendingPlayers = pendingPlayersRes.count || 0;
+    const totalReferees = totalRefereesRes.count || 0;
+    const pendingReferees = pendingRefereesRes.count || 0;
+    const activeTournaments = tournamentsRes.count || 0;
+    const totalNotices = noticesRes.count || 0;
 
     return (
         <div className="min-h-screen bg-[#FFFBFE] py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto space-y-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[#CAC4D0]/60">
-                    <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EADDFF] text-[#21005D] text-xs font-bold tracking-wide mb-2">
-                            <span>सुरक्षित प्रशासकीय कक्ष</span>
-                            <span>•</span>
-                            <span>AUTHENTICATED</span>
+                <div className="p-6 md:p-8 rounded-[36px] bg-[#F3EDF7] border border-[#CAC4D0]/40 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
+                    <div className="space-y-1">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EADDFF] text-[#21005D] text-xs font-semibold">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            सुरक्षित प्रशासकीय कक्ष • AUTHENTICATED
                         </div>
                         <h1 className="text-2xl md:text-3xl font-extrabold text-[#1C1B1F]">
                             महाराष्ट्र राज्य खो-खो असोसिएशन - मुख्य नियंत्रण कक्ष
                         </h1>
-                        <p className="text-xs md:text-sm text-[#49454F] mt-1 font-medium">
+                        <p className="text-xs text-[#49454F]">
                             MKKA State Administrative & Scrutiny Management Dashboard (2026-27)
                         </p>
                     </div>
@@ -115,9 +118,9 @@ export default async function AssociationDashboard() {
                     </div>
 
                     <div className="p-5 rounded-[28px] bg-white border border-[#CAC4D0]/60 shadow-sm space-y-1">
-                        <div className="text-xs text-[#49454F] font-medium">राज्य स्पर्धा सत्र</div>
+                        <div className="text-xs text-[#49454F] font-medium">सक्रिय परिपत्रके व स्पर्धा</div>
                         <div className="text-3xl font-bold text-teal-700">{activeTournaments}</div>
-                        <div className="text-[11px] text-[#49454F]">सक्रिय अजिंक्यपद स्पर्धा</div>
+                        <div className="text-[11px] text-[#49454F]">{totalNotices} परिपत्रके प्रकाशित</div>
                     </div>
                 </div>
 
@@ -171,19 +174,19 @@ export default async function AssociationDashboard() {
                     <div className="rounded-[32px] bg-[#F3EDF7] p-6 border border-[#CAC4D0]/40 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
                         <div className="space-y-3">
                             <div className="w-12 h-12 rounded-2xl bg-[#EADDFF] flex items-center justify-center text-[#21005D]">
-                                <ShieldCheck className="w-6 h-6 text-[#6750A4]" />
+                                <UserCheck className="w-6 h-6 text-[#6750A4]" />
                             </div>
                             <h2 className="text-lg font-bold text-[#1C1B1F]">
-                                पंच नोंदणी व परीक्षा श्रेणी
+                                अधिकृत पंच व परीक्षक सूची
                             </h2>
                             <p className="text-xs text-[#49454F] leading-relaxed">
-                                राज्य व राष्ट्रीय स्तरावरील अधिकृत पंचांची नोंदणी, ग्रेड (State/National Grade) आणि अधिकृत परीक्षा श्रेणी यादी पहा व व्यवस्थापित करा.
+                                राज्य व राष्ट्रीय स्तरावरील अधिकृत पंचांची नोंदणी, ग्रेड (State/National Grade) आणि अधिकृत परीक्षा श्रेणी यादी पहा.
                             </p>
                         </div>
                         <div className="pt-6">
                             <Link
                                 href="/association/referees/list"
-                                className="w-full h-11 rounded-full border border-purple-300 bg-white text-purple-900 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-purple-50 active:scale-95 transition-all shadow-sm"
+                                className="w-full h-11 rounded-full bg-[#6750A4] text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#6750A4]/90 active:scale-95 transition-all shadow-sm"
                             >
                                 <span>अधिकृत पंच यादी उघडा</span>
                                 <ArrowRight className="w-3.5 h-3.5" />
@@ -209,6 +212,29 @@ export default async function AssociationDashboard() {
                                 className="w-full h-11 rounded-full border border-[#6750A4] bg-white text-[#6750A4] text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#6750A4]/10 active:scale-95 transition-all shadow-sm"
                             >
                                 <span>एक्सेल डाऊनलोड केंद्र</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className="rounded-[32px] bg-[#F3EDF7] p-6 border border-[#CAC4D0]/40 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
+                        <div className="space-y-3">
+                            <div className="w-12 h-12 rounded-2xl bg-[#EADDFF] flex items-center justify-center text-[#21005D]">
+                                <BellRing className="w-6 h-6 text-[#21005D]" />
+                            </div>
+                            <h2 className="text-lg font-bold text-[#1C1B1F]">
+                                अधिकृत सूचना फलक (Notices)
+                            </h2>
+                            <p className="text-xs text-[#49454F] leading-relaxed">
+                                अधिकृत परिपत्रके, नियमपुस्तिका व सूचना पीडीएफ स्वरूपात अपलोड करा, डाऊनलोड करा व व्यवस्थापित करा.
+                            </p>
+                        </div>
+                        <div className="pt-6">
+                            <Link
+                                href="/association/notices"
+                                className="w-full h-11 rounded-full bg-[#21005D] text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#21005D]/90 active:scale-95 transition-all shadow-sm"
+                            >
+                                <span>सूचना फलक कक्ष उघडा</span>
                                 <ArrowRight className="w-3.5 h-3.5" />
                             </Link>
                         </div>
