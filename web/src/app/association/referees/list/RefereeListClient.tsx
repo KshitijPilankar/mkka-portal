@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
     ArrowLeft,
     Search,
@@ -215,12 +214,10 @@ export default function RefereeListClient({
                                             <td className="py-3.5 px-3 text-center">
                                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-[#E7E0EC] mx-auto border border-[#CAC4D0]/60 relative flex items-center justify-center">
                                                     {photoUrl ? (
-                                                        <Image
+                                                        <img
                                                             src={photoUrl}
                                                             alt={referee.full_name}
-                                                            fill
-                                                            sizes="40px"
-                                                            className="object-cover"
+                                                            className="w-full h-full object-cover"
                                                         />
                                                     ) : (
                                                         <span className="text-[10px] font-bold text-[#6750A4]">
@@ -276,12 +273,10 @@ export default function RefereeListClient({
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-full overflow-hidden bg-[#EADDFF] relative flex items-center justify-center border border-[#6750A4]">
                                     {getPublicDocUrl(activeModalReferee.photo_path) ? (
-                                        <Image
+                                        <img
                                             src={getPublicDocUrl(activeModalReferee.photo_path)!}
                                             alt={activeModalReferee.full_name}
-                                            fill
-                                            sizes="48px"
-                                            className="object-cover"
+                                            className="w-full h-full object-cover"
                                         />
                                     ) : (
                                         <span className="text-base font-bold text-[#6750A4]">
