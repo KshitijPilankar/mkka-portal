@@ -1,247 +1,219 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import Image from "next/image";
+import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+import {
+    Users,
+    Clock,
+    ShieldCheck,
+    Trophy,
+    ArrowRight,
+    LogOut,
+    Download,
+    FileSpreadsheet,
+    Layers,
+} from "lucide-react";
 
-interface DashboardStats {
-    totalPlayers: number;
-    approvedPlayers: number;
-    pendingPlayers: number;
-    totalReferees: number;
-    pendingReferees: number;
-    activeTournaments: number;
-}
+export const dynamic = "force-dynamic";
 
-export default function AdminDashboardPage() {
-    const router = useRouter();
-    const [stats, setStats] = useState<DashboardStats>({
-        totalPlayers: 25,
-        approvedPlayers: 25,
-        pendingPlayers: 0,
-        totalReferees: 1,
-        pendingReferees: 0,
-        activeTournaments: 2,
-    });
+export default async function AssociationDashboard() {
+    const cookieStore = await cookies();
+    const hasAdminSession =
+        cookieStore.get("mkka_admin_auth")?.value ||
+        cookieStore.get("mkka_admin_session")?.value ||
+        cookieStore.get("admin_session")?.value ||
+        cookieStore.get("mkka_admin")?.value ||
+        cookieStore.get("admin_auth")?.value;
 
-    // Supabase se live statistics load karna
-    useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const supabase = createClient();
-                if (!supabase) return;
+    if (!hasAdminSession) {
+        redirect("/association/login");
+    }
 
-                const { data: players } = await supabase.from("players").select("status");
-                const { data: referees } = await supabase.from("referees").select("status");
-                const { data: tournaments } = await supabase.from("tournaments").select("id");
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-                if (players || referees || tournaments) {
-                    const totalP = players ? players.length : 25;
-                    const approvedP = players ? players.filter((p) => p.status === "APPROVED").length : 25;
-                    const pendingP = players ? players.filter((p) => p.status === "PENDING").length : 0;
+    const [
+        totalPlayersRes,
+        approvedPlayersRes,
+        pendingPlayersRes,
+        totalRefereesRes,
+        pendingRefereesRes,
+        tournamentsRes,
+    ] = await Promise.all([
+        supabase.from("players").select("id", { count: "exact", head: true }),
+        supabase.from("players").select("id", { count: "exact", head: true }).eq("status", "APPROVED"),
+        supabase.from("players").select("id", { count: "exact", head: true }).eq("status", "PENDING_SCRUTINY"),
+        supabase.from("referees").select("id", { count: "exact", head: true }),
+        supabase.from("referees").select("id", { count: "exact", head: true }).eq("status", "PENDING_SCRUTINY"),
+        supabase.from("tournaments").select("id", { count: "exact", head: true }),
+    ]);
 
-                    const totalR = referees ? referees.length : 1;
-                    const pendingR = referees ? referees.filter((r) => r.status === "PENDING").length : 0;
-
-                    const activeT = tournaments && tournaments.length > 0 ? tournaments.length : 2;
-
-                    setStats({
-                        totalPlayers: totalP,
-                        approvedPlayers: approvedP,
-                        pendingPlayers: pendingP,
-                        totalReferees: totalR,
-                        pendingReferees: pendingR,
-                        activeTournaments: activeT,
-                    });
-                }
-            } catch {
-                // Fallback to default state
-            }
-        };
-
-        fetchStats();
-    }, []);
-
-    // Server API route se secure httpOnly cookie expire karne ka function
-    const handleLogout = async () => {
-        try {
-            await fetch("/api/association/auth", {
-                method: "DELETE",
-            });
-        } catch {
-            // Network error hone par bhi login page par redirect safe rahega
-        }
-        router.replace("/association/login");
-    };
+    const totalPlayers = totalPlayersRes.count || 0;
+    const approvedPlayers = approvedPlayersRes.count || 0;
+    const pendingPlayers = pendingPlayersRes.count || 0;
+    const totalReferees = totalRefereesRes.count || 0;
+    const pendingReferees = pendingRefereesRes.count || 0;
+    const activeTournaments = tournamentsRes.count || 0;
 
     return (
-        <div className="min-h-screen bg-[#FDF8FD] text-[#1C1B1F]">
-            <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-
-                {/* Top Admin Banner */}
-                <div className="mb-8 rounded-3xl border border-purple-100 bg-[#F7F2FA] p-6 sm:p-8">
-                    <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-purple-200 bg-white p-1.5 shadow-xs">
-                                <Image
-                                    src="/mkka-logo.png"
-                                    alt="MKKA Logo"
-                                    width={56}
-                                    height={56}
-                                    className="h-full w-full object-contain"
-                                    priority
-                                />
-                            </div>
-                            <div>
-                                <span className="inline-block rounded-full bg-purple-100 px-3 py-0.5 text-xs font-bold text-purple-900">
-                                    सुरक्षित प्रशासकीय कक्ष • AUTHENTICATED
-                                </span>
-                                <h1 className="mt-2 text-2xl font-extrabold text-gray-900 sm:text-3xl">
-                                    महाराष्ट्र राज्य खो-खो असोसिएशन - मुख्य नियंत्रण कक्ष
-                                </h1>
-                                <p className="mt-1 text-xs font-medium text-gray-600 sm:text-sm">
-                                    MKKA State Administrative & Scrutiny Management Dashboard (2026-27)
-                                </p>
-                            </div>
+        <div className="min-h-screen bg-[#FFFBFE] py-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto space-y-8">
+                <div className="p-6 md:p-8 rounded-[36px] bg-[#F3EDF7] border border-[#CAC4D0]/40 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
+                    <div className="space-y-1">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EADDFF] text-[#21005D] text-xs font-semibold">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            सुरक्षित प्रशासकीय कक्ष • AUTHENTICATED
                         </div>
+                        <h1 className="text-2xl md:text-3xl font-extrabold text-[#1C1B1F]">
+                            महाराष्ट्र राज्य खो-खो असोसिएशन - मुख्य नियंत्रण कक्ष
+                        </h1>
+                        <p className="text-xs text-[#49454F]">
+                            MKKA State Administrative & Scrutiny Management Dashboard (2026-27)
+                        </p>
+                    </div>
 
-                        {/* Header Actions */}
-                        <div className="flex items-center gap-3">
-                            <Link
-                                href="/"
-                                className="rounded-full border border-gray-200 bg-white px-5 py-2 text-xs font-bold text-gray-700 shadow-2xs transition hover:bg-gray-50 hover:text-purple-700"
-                            >
-                                मुख्य पोर्टल (Home)
-                            </Link>
+                    <div className="flex items-center gap-3">
+                        <Link
+                            href="/"
+                            className="h-10 px-5 rounded-full bg-white border border-[#CAC4D0] text-[#1C1B1F] text-xs font-semibold hover:bg-[#F3EDF7] transition-all flex items-center"
+                        >
+                            मुख्य पोर्टल (Home)
+                        </Link>
+                        <form action="/api/auth/logout" method="POST">
                             <button
-                                type="button"
-                                onClick={handleLogout}
-                                className="rounded-full border border-red-200 bg-red-50/80 px-5 py-2 text-xs font-bold text-red-700 shadow-2xs transition hover:bg-red-100 cursor-pointer"
+                                type="submit"
+                                className="h-10 px-5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-100 transition-all flex items-center gap-1.5"
                             >
+                                <LogOut className="w-3.5 h-3.5" />
                                 लॉगआउट (Logout)
                             </button>
-                        </div>
+                        </form>
                     </div>
                 </div>
 
-                {/* 4 Overview Statistics Cards */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-                    {/* Stat 1: Registered Players */}
-                    <div className="rounded-3xl border border-purple-100 bg-white p-5 shadow-xs">
-                        <p className="text-xs font-semibold text-gray-500">एकूण नोंदणीकृत खेळाडू</p>
-                        <p className="mt-2 text-3xl font-extrabold text-purple-900">{stats.totalPlayers}</p>
-                        <p className="mt-2 text-xs font-semibold text-emerald-700">
-                            {stats.approvedPlayers} मान्यताप्राप्त (Approved)
-                        </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                    <div className="p-5 rounded-[28px] bg-white border border-[#CAC4D0]/60 shadow-sm space-y-1">
+                        <div className="text-xs text-[#49454F] font-medium">एकूण नोंदणीकृत खेळाडू</div>
+                        <div className="text-3xl font-bold text-[#6750A4]">{totalPlayers}</div>
+                        <div className="text-[11px] text-emerald-700 font-semibold">{approvedPlayers} मान्यताप्राप्त (Approved)</div>
                     </div>
 
-                    {/* Stat 2: Pending Approvals */}
-                    <div className="rounded-3xl border border-amber-200 bg-white p-5 shadow-xs">
-                        <p className="text-xs font-semibold text-amber-800">खेळाडू छाननी प्रलंबित</p>
-                        <p className="mt-2 text-3xl font-extrabold text-amber-600">{stats.pendingPlayers}</p>
-                        <p className="mt-2 text-xs font-medium text-gray-500">पडताळणी बाकी अर्ज</p>
+                    <div className="p-5 rounded-[28px] bg-white border border-[#CAC4D0]/60 shadow-sm space-y-1">
+                        <div className="text-xs text-[#49454F] font-medium">खेळाडू छाननी प्रलंबित</div>
+                        <div className="text-3xl font-bold text-amber-600">{pendingPlayers}</div>
+                        <div className="text-[11px] text-[#49454F]">पडताळणी बाकी अर्ज</div>
                     </div>
 
-                    {/* Stat 3: Referees */}
-                    <div className="rounded-3xl border border-purple-100 bg-white p-5 shadow-xs">
-                        <p className="text-xs font-semibold text-gray-500">अधिकृत पंच व परीक्षक</p>
-                        <p className="mt-2 text-3xl font-extrabold text-purple-900">{stats.totalReferees}</p>
-                        <p className="mt-2 text-xs font-medium text-gray-500">
-                            {stats.pendingReferees} पंच छाननी बाकी
-                        </p>
+                    <div className="p-5 rounded-[28px] bg-white border border-[#CAC4D0]/60 shadow-sm space-y-1">
+                        <div className="text-xs text-[#49454F] font-medium">अधिकृत पंच व परीक्षक</div>
+                        <div className="text-3xl font-bold text-[#21005D]">{totalReferees}</div>
+                        <div className="text-[11px] text-[#49454F]">{pendingReferees} पंच छाननी बाकी</div>
                     </div>
 
-                    {/* Stat 4: Active Tournaments */}
-                    <div className="rounded-3xl border border-purple-100 bg-white p-5 shadow-xs">
-                        <p className="text-xs font-semibold text-gray-500">राज्य स्पर्धा सत्र</p>
-                        <p className="mt-2 text-3xl font-extrabold text-purple-900">{stats.activeTournaments}</p>
-                        <p className="mt-2 text-xs font-medium text-gray-500">सक्रिय अजिंक्यपद स्पर्धा</p>
+                    <div className="p-5 rounded-[28px] bg-white border border-[#CAC4D0]/60 shadow-sm space-y-1">
+                        <div className="text-xs text-[#49454F] font-medium">राज्य स्पर्धा सत्र</div>
+                        <div className="text-3xl font-bold text-teal-700">{activeTournaments}</div>
+                        <div className="text-[11px] text-[#49454F]">सक्रिय अजिंक्यपद स्पर्धा</div>
                     </div>
-
                 </div>
 
-                {/* 4 Main Admin Operations Cards */}
-                <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-
-                    {/* Action 1: Player Scrutiny Hub */}
-                    <div className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md">
-                        <div>
-                            <span className="text-3xl">🏃</span>
-                            <h2 className="mt-4 text-lg font-bold text-gray-900">खेळाडू अर्ज व छाननी कक्ष</h2>
-                            <p className="mt-3 text-xs leading-relaxed text-gray-600">
-                                जिल्हा संघटनांकडून प्राप्त झालेले नवीन खेळाडू नोंदणी अर्ज, जन्म प्रमाणपत्र आणि आधार पडताळणी करून मान्यता (Approve) किंवा नामंजूर (Reject) करा.
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="rounded-[32px] bg-[#F3EDF7] p-6 border border-[#CAC4D0]/40 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
+                        <div className="space-y-3">
+                            <div className="w-12 h-12 rounded-2xl bg-[#EADDFF] flex items-center justify-center text-[#21005D]">
+                                <Clock className="w-6 h-6 text-[#6750A4]" />
+                            </div>
+                            <h2 className="text-lg font-bold text-[#1C1B1F]">
+                                खेळाडू अर्ज व छाननी कक्ष
+                            </h2>
+                            <p className="text-xs text-[#49454F] leading-relaxed">
+                                जिल्हा संघटनांकडून प्राप्त झालेले नवीन खेळाडू नोंदणी अर्ज, जन्म प्रमाणपत्र आणि आधार पडताळणी करून मान्यता किंवा नामंजूर करा.
                             </p>
                         </div>
-                        <Link
-                            href="/association/players/approvals"
-                            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#5E428F] py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#4C3375]"
-                        >
-                            खेळाडू छाननी सुरू करा →
-                        </Link>
+                        <div className="pt-6">
+                            <Link
+                                href="/association/players/approvals"
+                                className="w-full h-11 rounded-full bg-[#6750A4] text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#6750A4]/90 active:scale-95 transition-all shadow-sm"
+                            >
+                                <span>खेळाडू छाननी सुरू करा</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                        </div>
                     </div>
 
-                    {/* Action 2: Referee Verification */}
-                    <div className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md">
-                        <div>
-                            <span className="text-3xl">⚖️</span>
-                            <h2 className="mt-4 text-lg font-bold text-gray-900">पंच नोंदणी व परीक्षा श्रेणी</h2>
-                            <p className="mt-3 text-xs leading-relaxed text-gray-600">
-                                राज्य व राष्ट्रीय स्तरावरील अधिकृत पंचांची नोंदणी, ग्रेड (State/National Grade) पडताळणी आणि परीक्षा पात्रता तपासणी व्यवस्थापित करा.
+                    <div className="rounded-[32px] bg-[#F3EDF7] p-6 border border-[#CAC4D0]/40 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
+                        <div className="space-y-3">
+                            <div className="w-12 h-12 rounded-2xl bg-[#EADDFF] flex items-center justify-center text-[#21005D]">
+                                <Users className="w-6 h-6 text-[#21005D]" />
+                            </div>
+                            <h2 className="text-lg font-bold text-[#1C1B1F]">
+                                खेळाडू मुख्य यादी व KKFI क्र.
+                            </h2>
+                            <p className="text-xs text-[#49454F] leading-relaxed">
+                                सर्व ३६ जिल्ह्यांतील खेळाडूंची मुख्य यादी पहा, फिल्टर करा आणि राष्ट्रीय फेडरेशन क्रमांक (Federation No.) नियुक्त करा.
                             </p>
                         </div>
-                        <Link
-                            href="/association/referees/approvals"
-                            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-purple-300 bg-white py-2.5 text-xs font-semibold text-purple-900 transition hover:bg-purple-50"
-                        >
-                            पंच छाननी व यादी →
-                        </Link>
+                        <div className="pt-6">
+                            <Link
+                                href="/association/players/directory"
+                                className="w-full h-11 rounded-full bg-[#21005D] text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#21005D]/90 active:scale-95 transition-all shadow-sm"
+                            >
+                                <span>खेळाडू यादी व संपादन</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                        </div>
                     </div>
 
-                    {/* Action 3: Tournaments Management Portal */}
-                    <div className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md">
-                        <div>
-                            <span className="text-3xl">🏆</span>
-                            <h2 className="mt-4 text-lg font-bold text-gray-900">राज्य स्पर्धा व वेळापत्रक केंद्र</h2>
-                            <p className="mt-3 text-xs leading-relaxed text-gray-600">
+                    <div className="rounded-[32px] bg-[#F3EDF7] p-6 border border-[#CAC4D0]/40 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
+                        <div className="space-y-3">
+                            <div className="w-12 h-12 rounded-2xl bg-[#EADDFF] flex items-center justify-center text-[#21005D]">
+                                <FileSpreadsheet className="w-6 h-6 text-[#6750A4]" />
+                            </div>
+                            <h2 className="text-lg font-bold text-[#1C1B1F]">
+                                खेळाडू माहिती डाऊनलोड
+                            </h2>
+                            <p className="text-xs text-[#49454F] leading-relaxed">
+                                सर्व ३६ जिल्ह्यांमधील खेळाडूंची माहिती व कागदपत्रे सर्व्हर लिंकसह Microsoft Excel (.xlsx) फॉरमॅटमध्ये डाऊनलोड करा.
+                            </p>
+                        </div>
+                        <div className="pt-6">
+                            <Link
+                                href="/association/players/download"
+                                className="w-full h-11 rounded-full border border-[#6750A4] bg-white text-[#6750A4] text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#6750A4]/10 active:scale-95 transition-all shadow-sm"
+                            >
+                                <span>एक्सेल डाऊनलोड केंद्र</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className="rounded-[32px] bg-[#F3EDF7] p-6 border border-[#CAC4D0]/40 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
+                        <div className="space-y-3">
+                            <div className="w-12 h-12 rounded-2xl bg-[#EADDFF] flex items-center justify-center text-[#21005D]">
+                                <Trophy className="w-6 h-6 text-teal-700" />
+                            </div>
+                            <h2 className="text-lg font-bold text-[#1C1B1F]">
+                                राज्य स्पर्धा व वेळापत्रक केंद्र
+                            </h2>
+                            <p className="text-xs text-[#49454F] leading-relaxed">
                                 नवीन अजिंक्यपद स्पर्धा आयोजित करा, जिल्हा संघ प्रवेश, गुणतालिका, थेट गुणनोंदणी आणि अधिकृत अंतिम निकाल अहवाल नियंत्रित करा.
                             </p>
                         </div>
-                        <Link
-                            href="/association/tournaments"
-                            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#006A6A] py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#005252]"
-                        >
-                            स्पर्धा व्यवस्थापन केंद्र उघडा →
-                        </Link>
-                    </div>
-
-                    {/* Action 4: Download Player List */}
-                    <div className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md">
-                        <div>
-                            <span className="text-3xl">📥</span>
-                            <h2 className="mt-4 text-lg font-bold text-gray-900">खेळाडू माहिती डाऊनलोड (Download Player List)</h2>
-                            <p className="mt-3 text-xs leading-relaxed text-gray-600">
-                                सर्व अधिकृत खेळाडूंची संपूर्ण माहिती, फोटो, पत्ता व संपर्क तपशील जिल्हानिहाय किंवा एकत्रित Excel (.xlsx) स्वरूपात डाऊनलोड करा.
-                            </p>
+                        <div className="pt-6">
+                            <Link
+                                href="/association/tournaments"
+                                className="w-full h-11 rounded-full bg-teal-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-teal-900 active:scale-95 transition-all shadow-sm"
+                            >
+                                <span>स्पर्धा व्यवस्थापन केंद्र उघडा</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
                         </div>
-                        <Link
-                            href="/association/players/download"
-                            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#7C3AED] py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#6D28D9]"
-                        >
-                            खेळाडू यादी डाऊनलोड करा →
-                        </Link>
                     </div>
-
                 </div>
-
-                {/* Bottom System Footer Info */}
-                <div className="mt-12 text-center text-xs text-gray-500">
-                    <p>महाराष्ट्र राज्य खो-खो असोसिएशन (MKKA) • अधिकृत प्रशासकीय डिजिटल प्रणाली सत्र २०२६-२७</p>
-                </div>
-
-            </main>
+            </div>
         </div>
     );
 }
