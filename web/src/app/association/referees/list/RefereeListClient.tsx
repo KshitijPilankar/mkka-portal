@@ -108,12 +108,10 @@ export default function RefereeListClient({
         return r.full_address || r.residential_address || "N/A";
     };
 
-    const getPublicDocUrl = (path?: string | null) => {
-        if (!path) return null;
-        if (path.startsWith("http://") || path.startsWith("https://")) return path;
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const cleanPath = path.startsWith("documents/") ? path.replace("documents/", "") : path;
-        return `${supabaseUrl}/storage/v1/object/public/documents/${cleanPath}`;
+    // सुरक्षित इंटरनल रूट जो बकेट का 404 एरर हल करेगा
+    const getDocViewerUrl = (path?: string | null) => {
+        if (!path) return "#";
+        return `/api/view-document?path=${encodeURIComponent(path)}`;
     };
 
     const filteredReferees = referees.filter((r) => {
@@ -259,7 +257,7 @@ export default function RefereeListClient({
                                     const dist = districtMap.get(distId);
                                     const grade = getRefereeGrade(referee);
                                     const examYear = getRefereeExamYear(referee);
-                                    const photoSrc = getPublicDocUrl(referee.photo_path || referee.photo_url);
+                                    const photoSrc = referee.photo_path || referee.photo_url;
 
                                     return (
                                         <tr key={referee.id} className="hover:bg-[#F3EDF7]/40 transition-colors">
@@ -270,7 +268,7 @@ export default function RefereeListClient({
                                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-[#E7E0EC] mx-auto border border-[#CAC4D0]/60 flex items-center justify-center">
                                                     {photoSrc ? (
                                                         <img
-                                                            src={photoSrc}
+                                                            src={getDocViewerUrl(photoSrc)}
                                                             alt={name}
                                                             className="w-full h-full object-cover"
                                                             onError={(e) => {
@@ -330,9 +328,9 @@ export default function RefereeListClient({
                         <div className="flex items-center justify-between pb-4 border-b border-[#CAC4D0]/60">
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-full overflow-hidden bg-[#EADDFF] flex items-center justify-center border border-[#6750A4]">
-                                    {getPublicDocUrl(activeModalReferee.photo_path || activeModalReferee.photo_url) ? (
+                                    {activeModalReferee.photo_path || activeModalReferee.photo_url ? (
                                         <img
-                                            src={getPublicDocUrl(activeModalReferee.photo_path || activeModalReferee.photo_url)!}
+                                            src={getDocViewerUrl(activeModalReferee.photo_path || activeModalReferee.photo_url)}
                                             alt={getRefereeName(activeModalReferee)}
                                             className="w-full h-full object-cover"
                                         />
@@ -395,7 +393,7 @@ export default function RefereeListClient({
                             <div className="grid grid-cols-3 gap-3 text-xs">
                                 {(activeModalReferee.photo_path || activeModalReferee.photo_url) && (
                                     <a
-                                        href={getPublicDocUrl(activeModalReferee.photo_path || activeModalReferee.photo_url) || "#"}
+                                        href={getDocViewerUrl(activeModalReferee.photo_path || activeModalReferee.photo_url)}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="p-3 rounded-xl border border-[#CAC4D0] hover:border-[#6750A4] hover:bg-[#EADDFF]/20 flex flex-col items-center text-center gap-1.5 transition-all"
@@ -406,7 +404,7 @@ export default function RefereeListClient({
                                 )}
                                 {activeModalReferee.id_proof_path && (
                                     <a
-                                        href={getPublicDocUrl(activeModalReferee.id_proof_path) || "#"}
+                                        href={getDocViewerUrl(activeModalReferee.id_proof_path)}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="p-3 rounded-xl border border-[#CAC4D0] hover:border-[#6750A4] hover:bg-[#EADDFF]/20 flex flex-col items-center text-center gap-1.5 transition-all"
@@ -417,7 +415,7 @@ export default function RefereeListClient({
                                 )}
                                 {activeModalReferee.cert_proof_path && (
                                     <a
-                                        href={getPublicDocUrl(activeModalReferee.cert_proof_path) || "#"}
+                                        href={getDocViewerUrl(activeModalReferee.cert_proof_path)}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="p-3 rounded-xl border border-[#CAC4D0] hover:border-[#6750A4] hover:bg-[#EADDFF]/20 flex flex-col items-center text-center gap-1.5 transition-all"
