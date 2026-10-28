@@ -28,7 +28,6 @@ export default async function RefereeListPage() {
         supabase
             .from("referees")
             .select("*")
-            .eq("status", "APPROVED")
             .order("created_at", { ascending: false }),
         supabase
             .from("districts")
@@ -36,7 +35,9 @@ export default async function RefereeListPage() {
             .order("name_mr", { ascending: true }),
     ]);
 
-    const referees = refereesRes.data || [];
+    const referees = (refereesRes.data || []).filter(
+        (r) => r.status === "APPROVED" || r.status === "approved"
+    );
     const districts = districtsRes.data || [];
 
     return (
