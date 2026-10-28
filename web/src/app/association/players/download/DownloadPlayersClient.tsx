@@ -2,7 +2,16 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Download, ArrowLeft, Building2, Users, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import {
+    Download,
+    ArrowLeft,
+    Building2,
+    Users,
+    FileSpreadsheet,
+    CheckCircle2,
+    AlertCircle,
+    Loader2,
+} from "lucide-react";
 
 interface DistrictOption {
     id: string;
@@ -16,7 +25,10 @@ interface DownloadPlayersClientProps {
     totalPlayersCount: number;
 }
 
-export default function DownloadPlayersClient({ districts, totalPlayersCount }: DownloadPlayersClientProps) {
+export default function DownloadPlayersClient({
+    districts,
+    totalPlayersCount,
+}: DownloadPlayersClientProps) {
     const [selectedDistrictId, setSelectedDistrictId] = useState<string>("");
     const [isDownloadingDistrict, setIsDownloadingDistrict] = useState<boolean>(false);
     const [isDownloadingAll, setIsDownloadingAll] = useState<boolean>(false);
@@ -35,7 +47,8 @@ export default function DownloadPlayersClient({ districts, totalPlayersCount }: 
         try {
             const response = await fetch(`/api/export/players?districtId=${selectedDistrictId}`);
             if (!response.ok) {
-                throw new Error("Failed to export district players");
+                const errorJson = await response.json().catch(() => null);
+                throw new Error(errorJson?.error || `Export failed with status ${response.status}`);
             }
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -50,7 +63,7 @@ export default function DownloadPlayersClient({ districts, totalPlayersCount }: 
             document.body.removeChild(a);
             setDownloadSuccess(`जिल्हा खेळाडूंची एक्सेल फाईल यशस्वीरित्या डाउनलोड झाली! (${districtCode})`);
         } catch (err: any) {
-            setDownloadError(err.message || "डाउनलोड करताना त्रुटी आली. पुन्हा प्रयत्न करा.");
+            setDownloadError(err.message || "डाउनलोड करताना त्रुटी आली. कृपया पुन्हा प्रयत्न करा.");
         } finally {
             setIsDownloadingDistrict(false);
         }
@@ -64,7 +77,8 @@ export default function DownloadPlayersClient({ districts, totalPlayersCount }: 
         try {
             const response = await fetch(`/api/export/players?all=true`);
             if (!response.ok) {
-                throw new Error("Failed to export state master players registry");
+                const errorJson = await response.json().catch(() => null);
+                throw new Error(errorJson?.error || `Export failed with status ${response.status}`);
             }
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -77,7 +91,7 @@ export default function DownloadPlayersClient({ districts, totalPlayersCount }: 
             document.body.removeChild(a);
             setDownloadSuccess("संपूर्ण महाराष्ट्र राज्य खेळाडूंची मास्टर एक्सेल फाईल यशस्वीरित्या डाउनलोड झाली!");
         } catch (err: any) {
-            setDownloadError(err.message || "डाउनलोड करताना त्रुटी आली. पुन्हा प्रयत्न करा.");
+            setDownloadError(err.message || "डाउनलोड करताना त्रुटी आली. कृपया पुन्हा प्रयत्न करा.");
         } finally {
             setIsDownloadingAll(false);
         }

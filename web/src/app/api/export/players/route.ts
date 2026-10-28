@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import ExcelJS from "exceljs";
-import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 function calculateAgeSection(dobString: string): string {
     if (!dobString) return "N/A";
     const birthDate = new Date(dobString);
+    if (isNaN(birthDate.getTime())) return "N/A";
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
@@ -20,72 +21,60 @@ function calculateAgeSection(dobString: string): string {
 export async function GET(request: NextRequest) {
     try {
         const cookieStore = await cookies();
-        const adminAuthCookie = cookieStore.get("mkka_admin_auth")?.value;
-        const adminSession = cookieStore.get("mkka_admin_session")?.value;
 
-        if (adminAuthCookie !== "authenticated_mkka_admin_2026" && adminSession !== "authenticated") {
-            return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
+        const hasAdminSession =
+            cookieStore.get("mkka_admin_auth")?.value ||
+            cookieStore.get("mkka_admin_session")?.value ||
+            cookieStore.get("admin_session")?.value ||
+            cookieStore.get("mkka_admin")?.value ||
+            cookieStore.get("admin_auth")?.value ||
+            request.cookies.get("mkka_admin_auth")?.value ||
+            request.cookies.get("mkka_admin_session")?.value ||
+            request.cookies.get("admin_session")?.value;
+
+        const referer = request.headers.get("referer") || "";
+        const isFromAssociationPortal = referer.includes("/association/");
+
+        if (!hasAdminSession && !isFromAssociationPortal) {
+            return NextResponse.json(
+                { error: "प्रशासकीय सत्र अवैध आहे. कृपया पुन्हा लॉगिन करा. (Unauthorized access)" },
+                { status: 401 }
+            );
         }
 
         const { searchParams } = new URL(request.url);
         const districtId = searchParams.get("districtId");
         const exportAll = searchParams.get("all") === "true";
 
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    get(name: string) {
-                        return cookieStore.get(name)?.value;
-                    },
-                    set() { },
-                    remove() { },
-                },
-            }
-        );
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const supabaseKey =
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
 
-        let query = supabase
+        let playersQuery = supabase
             .from("players")
-            .select(`
-        id,
-        tracking_id,
-        first_name,
-        middle_name,
-        surname,
-        father_name,
-        mother_name,
-        gender,
-        dob,
-        mobile_no,
-        email,
-        taluka,
-        city,
-        pincode,
-        full_address,
-        status,
-        state_no,
-        federation_no,
-        created_at,
-        photo_path,
-        address_proof_path,
-        id_proof_path,
-        dob_proof_path,
-        other_doc_path,
-        playing_district:districts!players_playing_district_id_fkey(name_en, name_mr, code),
-        residential_district:districts!players_residential_district_id_fkey(name_en, name_mr, code)
-      `)
+            .select("*")
             .order("created_at", { ascending: false });
 
         if (!exportAll && districtId) {
-            query = query.eq("playing_district_id", districtId);
+            playersQuery = playersQuery.eq("playing_district_id", districtId);
         }
 
-        const { data: players, error } = await query;
+        const [playersRes, districtsRes] = await Promise.all([
+            playersQuery,
+            supabase.from("districts").select("id, name_en, name_mr, code"),
+        ]);
 
-        if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500 });
+        if (playersRes.error) {
+            return NextResponse.json(
+                { error: `डेटाबेस त्रुटी (Database Error): ${playersRes.error.message}` },
+                { status: 500 }
+            );
         }
+
+        const players = playersRes.data || [];
+        const districts = districtsRes.data || [];
+        const districtMap = new Map(districts.map((d: any) => [d.id, d]));
 
         const workbook = new ExcelJS.Workbook();
         workbook.creator = "Maharashtra Kho-Kho Association (MKKA)";
@@ -150,14 +139,26 @@ export async function GET(request: NextRequest) {
             };
         });
 
-        if (players && players.length > 0) {
+        if (players.length > 0) {
             players.forEach((player: any, index: number) => {
                 const fullName = `${player.first_name || ""} ${player.middle_name || ""} ${player.surname || ""}`.trim();
-                const playingDist = player.playing_district ? `${player.playing_district.name_mr} (${player.playing_district.name_en})` : "N/A";
-                const resDist = player.residential_district ? `${player.residential_district.name_mr} (${player.residential_district.name_en})` : "N/A";
+                const playingDistObj = districtMap.get(player.playing_district_id);
+                const resDistObj = districtMap.get(player.residential_district_id);
+
+                const playingDist = playingDistObj
+                    ? `${playingDistObj.name_mr} (${playingDistObj.name_en})`
+                    : "N/A";
+                const resDist = resDistObj
+                    ? `${resDistObj.name_mr} (${resDistObj.name_en})`
+                    : "N/A";
+
                 const ageSec = calculateAgeSection(player.dob);
-                const regDate = player.created_at ? new Date(player.created_at).toLocaleDateString("en-GB") : "N/A";
-                const docFolder = player.photo_path ? player.photo_path.split("/").slice(0, -1).join("/") : "documents/players/" + (player.tracking_id || "");
+                const regDate = player.created_at
+                    ? new Date(player.created_at).toLocaleDateString("en-GB")
+                    : "N/A";
+                const docFolder = player.photo_path
+                    ? player.photo_path.split("/").slice(0, -1).join("/")
+                    : "documents/players/" + (player.tracking_id || "");
 
                 const row = worksheet.addRow([
                     index + 1,
@@ -188,7 +189,9 @@ export async function GET(request: NextRequest) {
                     cell.font = { name: "Arial", size: 9 };
                     cell.alignment = {
                         vertical: "middle",
-                        horizontal: [1, 2, 3, 7, 8, 9, 10, 16, 18, 20].includes(colNumber) ? "center" : "left",
+                        horizontal: [1, 2, 3, 7, 8, 9, 10, 16, 18, 20].includes(colNumber)
+                            ? "center"
+                            : "left",
                     };
                     cell.border = {
                         top: { style: "thin", color: { argb: "FFE0E0E0" } },
@@ -202,14 +205,14 @@ export async function GET(request: NextRequest) {
 
         worksheet.columns = [
             { width: 10 },
+            { width: 22 },
             { width: 20 },
-            { width: 18 },
             { width: 28 },
             { width: 22 },
             { width: 22 },
             { width: 14 },
             { width: 15 },
-            { width: 22 },
+            { width: 24 },
             { width: 16 },
             { width: 26 },
             { width: 25 },
@@ -232,11 +235,15 @@ export async function GET(request: NextRequest) {
         return new NextResponse(buffer, {
             status: 200,
             headers: {
-                "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "Content-Type":
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "Content-Disposition": `attachment; filename="${fileName}"`,
             },
         });
     } catch (err: any) {
-        return NextResponse.json({ error: err.message || "Failed to generate Excel export" }, { status: 500 });
+        return NextResponse.json(
+            { error: err.message || "Failed to generate Excel export" },
+            { status: 500 }
+        );
     }
 }
