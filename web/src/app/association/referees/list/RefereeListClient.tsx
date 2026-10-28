@@ -29,17 +29,30 @@ interface District {
 interface RefereeRecord {
     id: string;
     tracking_id?: string;
-    full_name: string;
+    first_name?: string;
+    middle_name?: string;
+    surname?: string;
+    full_name?: string;
+    father_name?: string;
+    mother_name?: string;
     gender?: string;
     dob?: string;
-    mobile: string;
+    mobile?: string;
+    mobile_no?: string;
     email: string;
     residential_address?: string;
-    district_id: string;
-    exam_passing_year: number | string;
-    grade: string;
+    full_address?: string;
+    district_id?: string;
+    affiliated_district_id?: string;
+    residential_district_id?: string;
+    exam_passing_year?: number | string;
+    exam_year?: number | string;
+    grade?: string;
+    referee_grade?: string;
     experience_years?: number | string;
+    experience?: number | string;
     photo_path?: string | null;
+    photo_url?: string | null;
     id_proof_path?: string | null;
     cert_proof_path?: string | null;
     status: string;
@@ -64,28 +77,65 @@ export default function RefereeListClient({
 
     const districtMap = new Map(districts.map((d) => [d.id, d]));
 
+    const getRefereeName = (r: RefereeRecord) => {
+        if (r.first_name || r.surname) {
+            return `${r.first_name || ""} ${r.middle_name || ""} ${r.surname || ""}`.trim();
+        }
+        return r.full_name || "अधिकृत पंच";
+    };
+
+    const getRefereeMobile = (r: RefereeRecord) => {
+        return r.mobile_no || r.mobile || "N/A";
+    };
+
+    const getRefereeDistrictId = (r: RefereeRecord) => {
+        return r.affiliated_district_id || r.district_id || r.residential_district_id || "";
+    };
+
+    const getRefereeGrade = (r: RefereeRecord) => {
+        return r.referee_grade || r.grade || "State Level";
+    };
+
+    const getRefereeExamYear = (r: RefereeRecord) => {
+        return r.exam_passing_year || r.exam_year || "N/A";
+    };
+
+    const getRefereeExperience = (r: RefereeRecord) => {
+        return r.experience_years ?? r.experience ?? "0";
+    };
+
+    const getRefereeAddress = (r: RefereeRecord) => {
+        return r.full_address || r.residential_address || "N/A";
+    };
+
+    const getPublicDocUrl = (path?: string | null) => {
+        if (!path) return null;
+        if (path.startsWith("http://") || path.startsWith("https://")) return path;
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const cleanPath = path.startsWith("documents/") ? path.replace("documents/", "") : path;
+        return `${supabaseUrl}/storage/v1/object/public/documents/${cleanPath}`;
+    };
+
     const filteredReferees = referees.filter((r) => {
-        const fullName = (r.full_name || "").toLowerCase();
+        const fullName = getRefereeName(r).toLowerCase();
+        const mobile = getRefereeMobile(r);
         const query = searchTerm.toLowerCase().trim();
 
         const matchesSearch =
             !query ||
             fullName.includes(query) ||
-            (r.mobile && r.mobile.includes(query)) ||
+            mobile.includes(query) ||
             (r.email && r.email.toLowerCase().includes(query)) ||
             (r.tracking_id && r.tracking_id.toLowerCase().includes(query));
 
-        const matchesDistrict = !selectedDistrict || r.district_id === selectedDistrict;
-        const matchesGrade = selectedGrade === "ALL" || r.grade === selectedGrade;
+        const distId = getRefereeDistrictId(r);
+        const matchesDistrict = !selectedDistrict || distId === selectedDistrict;
+
+        const grade = getRefereeGrade(r);
+        const matchesGrade = selectedGrade === "ALL" || grade === selectedGrade;
 
         return matchesSearch && matchesDistrict && matchesGrade;
     });
-
-    const getPublicDocUrl = (path?: string | null) => {
-        if (!path) return null;
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        return `${supabaseUrl}/storage/v1/object/public/documents/${path}`;
-    };
 
     return (
         <div className="space-y-6">
@@ -203,8 +253,13 @@ export default function RefereeListClient({
                                 </tr>
                             ) : (
                                 filteredReferees.map((referee, index) => {
-                                    const dist = districtMap.get(referee.district_id);
-                                    const photoUrl = getPublicDocUrl(referee.photo_path);
+                                    const name = getRefereeName(referee);
+                                    const mobile = getRefereeMobile(referee);
+                                    const distId = getRefereeDistrictId(referee);
+                                    const dist = districtMap.get(distId);
+                                    const grade = getRefereeGrade(referee);
+                                    const examYear = getRefereeExamYear(referee);
+                                    const photoSrc = getPublicDocUrl(referee.photo_path || referee.photo_url);
 
                                     return (
                                         <tr key={referee.id} className="hover:bg-[#F3EDF7]/40 transition-colors">
@@ -212,36 +267,39 @@ export default function RefereeListClient({
                                                 {index + 1}
                                             </td>
                                             <td className="py-3.5 px-3 text-center">
-                                                <div className="w-10 h-10 rounded-full overflow-hidden bg-[#E7E0EC] mx-auto border border-[#CAC4D0]/60 relative flex items-center justify-center">
-                                                    {photoUrl ? (
+                                                <div className="w-10 h-10 rounded-full overflow-hidden bg-[#E7E0EC] mx-auto border border-[#CAC4D0]/60 flex items-center justify-center">
+                                                    {photoSrc ? (
                                                         <img
-                                                            src={photoUrl}
-                                                            alt={referee.full_name}
+                                                            src={photoSrc}
+                                                            alt={name}
                                                             className="w-full h-full object-cover"
+                                                            onError={(e) => {
+                                                                (e.target as HTMLElement).style.display = "none";
+                                                            }}
                                                         />
                                                     ) : (
-                                                        <span className="text-[10px] font-bold text-[#6750A4]">
-                                                            {referee.full_name?.charAt(0) || "P"}
+                                                        <span className="text-[11px] font-bold text-[#6750A4]">
+                                                            {name.charAt(0) || "प"}
                                                         </span>
                                                     )}
                                                 </div>
                                             </td>
                                             <td className="py-3.5 px-4 font-semibold text-[#1C1B1F]">
-                                                {referee.full_name}
+                                                {name}
                                             </td>
                                             <td className="py-3.5 px-4 text-[#49454F]">
                                                 {dist ? `${dist.name_mr} (${dist.code})` : "N/A"}
                                             </td>
                                             <td className="py-3.5 px-4">
                                                 <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#EADDFF] text-[#21005D] text-[11px] font-bold">
-                                                    {referee.grade || "State Level"}
+                                                    {grade}
                                                 </span>
                                             </td>
                                             <td className="py-3.5 px-4 font-mono text-[#49454F]">
-                                                {referee.exam_passing_year || "N/A"}
+                                                {examYear}
                                             </td>
                                             <td className="py-3.5 px-4 font-mono text-[#49454F]">
-                                                {referee.mobile}
+                                                {mobile}
                                             </td>
                                             <td className="py-3.5 px-3 text-center">
                                                 <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide bg-emerald-100 text-emerald-800">
@@ -271,16 +329,16 @@ export default function RefereeListClient({
                     <div className="bg-white rounded-[32px] max-w-2xl w-full p-6 md:p-8 shadow-2xl space-y-6 my-8 border border-[#CAC4D0]">
                         <div className="flex items-center justify-between pb-4 border-b border-[#CAC4D0]/60">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full overflow-hidden bg-[#EADDFF] relative flex items-center justify-center border border-[#6750A4]">
-                                    {getPublicDocUrl(activeModalReferee.photo_path) ? (
+                                <div className="w-12 h-12 rounded-full overflow-hidden bg-[#EADDFF] flex items-center justify-center border border-[#6750A4]">
+                                    {getPublicDocUrl(activeModalReferee.photo_path || activeModalReferee.photo_url) ? (
                                         <img
-                                            src={getPublicDocUrl(activeModalReferee.photo_path)!}
-                                            alt={activeModalReferee.full_name}
+                                            src={getPublicDocUrl(activeModalReferee.photo_path || activeModalReferee.photo_url)!}
+                                            alt={getRefereeName(activeModalReferee)}
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
                                         <span className="text-base font-bold text-[#6750A4]">
-                                            {activeModalReferee.full_name?.charAt(0)}
+                                            {getRefereeName(activeModalReferee).charAt(0)}
                                         </span>
                                     )}
                                 </div>
@@ -289,10 +347,10 @@ export default function RefereeListClient({
                                         अधिकृत पंच तपशील (REFEREE DOSSIER)
                                     </span>
                                     <h2 className="text-xl font-bold text-[#1C1B1F]">
-                                        {activeModalReferee.full_name}
+                                        {getRefereeName(activeModalReferee)}
                                     </h2>
                                     <div className="text-xs text-[#49454F] font-mono">
-                                        {districtMap.get(activeModalReferee.district_id)?.name_mr} जिल्हा
+                                        {districtMap.get(getRefereeDistrictId(activeModalReferee))?.name_mr || "महाराष्ट्र"} जिल्हा
                                     </div>
                                 </div>
                             </div>
@@ -310,9 +368,9 @@ export default function RefereeListClient({
                                 <div className="font-bold text-[#6750A4] flex items-center gap-1.5">
                                     <Award className="w-4 h-4" /> तांत्रिक व परीक्षा पात्रता
                                 </div>
-                                <div>परीक्षा श्रेणी: <strong className="text-[#21005D]">{activeModalReferee.grade}</strong></div>
-                                <div>परीक्षा उत्तीर्ण वर्ष: <strong>{activeModalReferee.exam_passing_year || "N/A"}</strong></div>
-                                <div>अनुभव (वर्षे): <strong>{activeModalReferee.experience_years || "0"} वर्षे</strong></div>
+                                <div>परीक्षा श्रेणी: <strong className="text-[#21005D]">{getRefereeGrade(activeModalReferee)}</strong></div>
+                                <div>परीक्षा उत्तीर्ण वर्ष: <strong>{getRefereeExamYear(activeModalReferee)}</strong></div>
+                                <div>अनुभव (वर्षे): <strong>{getRefereeExperience(activeModalReferee)} वर्षे</strong></div>
                                 <div>लिंग: <strong>{activeModalReferee.gender === "MALE" ? "पुरुष" : activeModalReferee.gender === "FEMALE" ? "महिला" : "N/A"}</strong></div>
                                 <div>जन्मदिनांक: <strong>{activeModalReferee.dob || "N/A"}</strong></div>
                             </div>
@@ -321,12 +379,12 @@ export default function RefereeListClient({
                                 <div className="font-bold text-[#6750A4] flex items-center gap-1.5">
                                     <Phone className="w-4 h-4" /> संपर्क माहिती
                                 </div>
-                                <div>मोबाईल: <strong className="font-mono">{activeModalReferee.mobile}</strong></div>
+                                <div>मोबाईल: <strong className="font-mono">{getRefereeMobile(activeModalReferee)}</strong></div>
                                 <div>ईमेल: <strong>{activeModalReferee.email}</strong></div>
                                 <div>
-                                    संलग्न जिल्हा: <strong>{districtMap.get(activeModalReferee.district_id)?.name_mr || "N/A"}</strong>
+                                    संलग्न जिल्हा: <strong>{districtMap.get(getRefereeDistrictId(activeModalReferee))?.name_mr || "N/A"}</strong>
                                 </div>
-                                <div>पत्ता: <span className="text-[#49454F]">{activeModalReferee.residential_address || "N/A"}</span></div>
+                                <div>पत्ता: <span className="text-[#49454F]">{getRefereeAddress(activeModalReferee)}</span></div>
                             </div>
                         </div>
 
@@ -335,9 +393,9 @@ export default function RefereeListClient({
                                 अधिकृत कागदपत्रे व प्रमाणपत्रे (Attached Credentials):
                             </div>
                             <div className="grid grid-cols-3 gap-3 text-xs">
-                                {activeModalReferee.photo_path && (
+                                {(activeModalReferee.photo_path || activeModalReferee.photo_url) && (
                                     <a
-                                        href={getPublicDocUrl(activeModalReferee.photo_path) || "#"}
+                                        href={getPublicDocUrl(activeModalReferee.photo_path || activeModalReferee.photo_url) || "#"}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="p-3 rounded-xl border border-[#CAC4D0] hover:border-[#6750A4] hover:bg-[#EADDFF]/20 flex flex-col items-center text-center gap-1.5 transition-all"
