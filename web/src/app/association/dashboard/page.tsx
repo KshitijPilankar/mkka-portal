@@ -163,8 +163,8 @@ export default function AdminDashboardPage() {
 
                 </div>
 
-                {/* 3 Main Admin Operations Cards */}
-                <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+                {/* 4 Main Admin Operations Cards */}
+                <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
 
                     {/* Action 1: Player Scrutiny Hub */}
                     <div className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md">
@@ -214,6 +214,23 @@ export default function AdminDashboardPage() {
                             className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#006A6A] py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#005252]"
                         >
                             स्पर्धा व्यवस्थापन केंद्र उघडा →
+                        </Link>
+                    </div>
+
+                    {/* Action 4: Download Player List */}
+                    <div className="flex flex-col justify-between rounded-3xl border border-purple-100 bg-white p-6 shadow-sm transition hover:shadow-md">
+                        <div>
+                            <span className="text-3xl">📥</span>
+                            <h2 className="mt-4 text-lg font-bold text-gray-900">खेळाडू माहिती डाऊनलोड (Download Player List)</h2>
+                            <p className="mt-3 text-xs leading-relaxed text-gray-600">
+                                सर्व अधिकृत खेळाडूंची संपूर्ण माहिती, फोटो, पत्ता व संपर्क तपशील जिल्हानिहाय किंवा एकत्रित Excel (.xlsx) स्वरूपात डाऊनलोड करा.
+                            </p>
+                        </div>
+                        <Link
+                            href="/association/players/download"
+                            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#7C3AED] py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#6D28D9]"
+                        >
+                            खेळाडू यादी डाऊनलोड करा →
                         </Link>
                     </div>
 
