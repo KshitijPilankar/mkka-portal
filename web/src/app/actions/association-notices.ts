@@ -46,12 +46,30 @@ export async function uploadNoticeAction(formData: FormData) {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        const { error: uploadError } = await supabase.storage
-            .from("documents")
+        // Target bucket set to 'player-documents'
+        let targetBucket = "player-documents";
+        let { error: uploadError } = await supabase.storage
+            .from(targetBucket)
             .upload(storagePath, buffer, {
-                contentType: file.type,
+                contentType: file.type || "application/pdf",
                 upsert: false,
             });
+
+        // Fallback if bucket name differs
+        if (uploadError && uploadError.message.includes("Bucket not found")) {
+            const fallbackBuckets = ["association-assets", "documents"];
+            for (const b of fallbackBuckets) {
+                const res = await supabase.storage.from(b).upload(storagePath, buffer, {
+                    contentType: file.type || "application/pdf",
+                    upsert: false,
+                });
+                if (!res.error) {
+                    uploadError = null;
+                    targetBucket = b;
+                    break;
+                }
+            }
+        }
 
         if (uploadError) {
             return { success: false, error: `Storage upload error: ${uploadError.message}` };
@@ -60,7 +78,7 @@ export async function uploadNoticeAction(formData: FormData) {
         const { error: dbError } = await supabase.from("notices").insert([
             {
                 subject,
-                attachment_path: storagePath,
+                attachment_path: `${targetBucket}/${storagePath}`,
                 created_at: new Date().toISOString(),
             },
         ]);
@@ -91,7 +109,16 @@ export async function deleteNoticeAction(noticeId: string, attachmentPath: strin
         const supabase = createClient(supabaseUrl, supabaseKey);
 
         if (attachmentPath) {
-            await supabase.storage.from("documents").remove([attachmentPath]);
+            let bucket = "player-documents";
+            let cleanPath = attachmentPath;
+            if (cleanPath.startsWith("player-documents/")) {
+                cleanPath = cleanPath.replace("player-documents/", "");
+                bucket = "player-documents";
+            } else if (cleanPath.startsWith("association-assets/")) {
+                cleanPath = cleanPath.replace("association-assets/", "");
+                bucket = "association-assets";
+            }
+            await supabase.storage.from(bucket).remove([cleanPath]);
         }
 
         const { error } = await supabase.from("notices").delete().eq("id", noticeId);

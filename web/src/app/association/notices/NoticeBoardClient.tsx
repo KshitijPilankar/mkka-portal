@@ -38,6 +38,7 @@ export default function NoticeBoardClient({ initialNotices }: NoticeBoardClientP
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [alertState, setAlertState] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+    // Safe resolver route for Supabase Storage signed downloads
     const getPublicFileUrl = (path: string) => {
         if (!path) return "#";
         return `/api/view-document?path=${encodeURIComponent(path)}`;
@@ -182,7 +183,7 @@ export default function NoticeBoardClient({ initialNotices }: NoticeBoardClientP
                 </form>
             </div>
 
-            {/* Notices Table Card */}
+            {/* Published Notices Archive Table */}
             <div className="rounded-[28px] bg-white border border-[#CAC4D0]/60 overflow-hidden shadow-sm">
                 <div className="p-4 bg-[#F3EDF7]/50 border-b border-[#CAC4D0]/40 flex items-center justify-between">
                     <div className="text-xs font-bold text-[#1C1B1F] flex items-center gap-2">
@@ -219,7 +220,7 @@ export default function NoticeBoardClient({ initialNotices }: NoticeBoardClientP
 
                                     return (
                                         <tr key={item.id} className="hover:bg-[#F3EDF7]/30 transition-colors">
-                                             <td className="py-3.5 px-3 text-center font-medium text-[#79747E]">
+                                            <td className="py-3.5 px-3 text-center font-medium text-[#79747E]">
                                                 {index + 1}
                                             </td>
                                             <td className="py-3.5 px-4 font-semibold text-[#1C1B1F]">
@@ -249,7 +250,7 @@ export default function NoticeBoardClient({ initialNotices }: NoticeBoardClientP
                                                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-semibold hover:bg-rose-100 active:scale-95 transition-all disabled:opacity-50"
                                                     >
                                                         {isDeleting ? (
-                                                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                                         ) : (
                                                             <Trash2 className="w-3.5 h-3.5" />
                                                         )}
