@@ -147,10 +147,21 @@ export async function registerPlayerAction(formData: FormData) {
             otherDocPath = await uploadFile(otherDocFile, 'other');
         }
 
-        // Insert Player Record in Pending Status
+        // Generate District-based Player ID Number for immediate tracking
+        const { data: district } = await supabase
+            .from('districts')
+            .select('code')
+            .eq('id', parsed.data.playingDistrictId)
+            .maybeSingle();
+
+        const distCode = district?.code || 'MAH';
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        const generatedPlayerId = `MKKA-2026-${distCode}-${randomNum}`;
+
+        // Insert Player Record in STRICTLY PENDING Status
         const { data, error } = await supabase.from('players').insert({
             first_name: parsed.data.firstName,
-            middle_name: parsed.data.middleName,
+            middle_name: parsed.data.middleName || null,
             surname: parsed.data.surname,
             father_name: parsed.data.fatherName || null,
             mother_name: parsed.data.motherName || null,
@@ -171,21 +182,29 @@ export async function registerPlayerAction(formData: FormData) {
             id_proof_path: idProofPath,
             dob_proof_path: dobProofPath,
             other_doc_path: otherDocPath,
+            player_id_number: generatedPlayerId,
+            // Strictly require admin scrutiny:
             status: 'PENDING',
-        }).select('id').single();
+            state_no: null,
+            approved_at: null,
+            approved_by: null,
+        }).select('id, player_id_number').single();
 
         if (error) {
             return { success: false, error: error.message };
         }
 
         revalidatePath('/register/player');
-        return { success: true, trackingId: data.id };
+        revalidatePath('/association/players/approvals');
+        revalidatePath('/association/dashboard');
+        revalidatePath('/');
+        return { success: true, trackingId: data.id, playerIdNumber: data.player_id_number };
     } catch (err: any) {
         return { success: false, error: err.message || 'Server error occurred' };
     }
 }
 
-// कागदावरून स्कॅन केलेल्या खेळाडूंची एकाच वेळी डेटाबेसमध्ये नोंद करणे
+// कागदावरून स्कॅन केलेल्या खेळाडूंची नोंद (Direct approve बंद - Strictly PENDING)
 export async function batchRegisterScannedPlayersAction(payload: {
     districtId: string;
     players: Array<{
@@ -216,10 +235,13 @@ export async function batchRegisterScannedPlayersAction(payload: {
                 playing_district_id: payload.districtId,
                 current_district_id: payload.districtId,
                 residential_district_id: payload.districtId,
-                status: 'APPROVED',
+                // FIXED: Direct approval changed to PENDING
+                status: 'PENDING',
                 player_id_number: `MKKA-${currentYear}-DIST-${randomSix}`,
                 photo_path: 'demo/player-photo.jpg',
-                approved_at: new Date().toISOString(),
+                state_no: null,
+                approved_at: null,
+                approved_by: null,
             };
         });
 
@@ -227,6 +249,8 @@ export async function batchRegisterScannedPlayersAction(payload: {
 
         if (error) throw new Error(error.message);
 
+        revalidatePath('/association/players/approvals');
+        revalidatePath('/association/dashboard');
         return { success: true, count: data.length };
     } catch (err: any) {
         return { success: false, error: err.message || 'Batch registration failed' };
