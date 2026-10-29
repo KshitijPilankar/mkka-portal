@@ -14,6 +14,7 @@ import {
     FileSpreadsheet,
     BellRing,
     UserCheck,
+    Building2,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -189,6 +190,29 @@ export default async function AssociationDashboard() {
                                 className="w-full h-11 rounded-full bg-[#6750A4] text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#6750A4]/90 active:scale-95 transition-all shadow-sm"
                             >
                                 <span>अधिकृत पंच यादी उघडा</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className="rounded-[32px] bg-[#F3EDF7] p-6 border border-[#CAC4D0]/40 flex flex-col justify-between shadow-sm hover:shadow-md transition-all">
+                        <div className="space-y-3">
+                            <div className="w-12 h-12 rounded-2xl bg-[#EADDFF] flex items-center justify-center text-[#21005D]">
+                                <Building2 className="w-6 h-6 text-[#21005D]" />
+                            </div>
+                            <h2 className="text-lg font-bold text-[#1C1B1F]">
+                                ३६ जिल्हा संघटना व्यवस्थापन
+                            </h2>
+                            <p className="text-xs text-[#49454F] leading-relaxed">
+                                महाराष्ट्रातील सर्व ३६ संलग्न जिल्हा संघटनांचे संपर्क अधिकारी, युझरनेम व जिल्हा लॉगिन पासवर्ड नियंत्रण.
+                            </p>
+                        </div>
+                        <div className="pt-6">
+                            <Link
+                                href="/association/districts"
+                                className="w-full h-11 rounded-full bg-[#21005D] text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#21005D]/90 active:scale-95 transition-all shadow-sm"
+                            >
+                                <span>जिल्हा व्यवस्थापन कक्ष उघडा</span>
                                 <ArrowRight className="w-3.5 h-3.5" />
                             </Link>
                         </div>
