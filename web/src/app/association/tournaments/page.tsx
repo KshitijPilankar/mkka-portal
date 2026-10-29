@@ -273,7 +273,7 @@ export default function AdminTournamentsPage() {
                             {/* Admin Management Links */}
                             <div className="mt-6 flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
                                 <Link
-                                    href={`/tournaments/${tournament.id}`}
+                                    href={`/association/tournaments/${tournament.id}`}
                                     className="w-full rounded-full border border-purple-200 bg-white py-2.5 text-center text-xs font-bold text-purple-900 transition hover:bg-purple-50 sm:w-1/2"
                                 >
                                     दाखल संघ पडताळणी
