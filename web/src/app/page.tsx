@@ -10,11 +10,7 @@ import {
   Bell,
   ArrowRight,
   ShieldCheck,
-  CheckCircle2,
-  Calendar,
   Sparkles,
-  Download,
-  FileText,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +43,7 @@ export default async function HomePage() {
   const totalPlayers = playersCountRes.count || 27;
   const totalDistricts = districtsCountRes.count || 36;
   const totalTournaments = tournamentsCountRes.count || 2;
-  const totalReferees = refereesCountRes.count || 12;
+  const totalReferees = refereesCountRes.count || 2;
   const latestNotices = noticesRes.data || [];
 
   return (
@@ -125,7 +121,7 @@ export default async function HomePage() {
         {/* Main Action Hub Modules */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-          {/* Module 1: Player Registration */}
+          {/* Module 1: Player Registration (Targeting /register/player) */}
           <div className="p-6 rounded-[32px] bg-white border border-[#CAC4D0]/60 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
             <div className="space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-[#EADDFF] flex items-center justify-center text-[#21005D]">
@@ -138,7 +134,7 @@ export default async function HomePage() {
             </div>
             <div className="pt-2">
               <Link
-                href="/register"
+                href="/register/player"
                 className="w-full h-11 rounded-full bg-[#6750A4] text-white text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#6750A4]/90 active:scale-95 transition-all shadow-xs"
               >
                 <span>अर्ज भरा / Register Now</span>
@@ -213,7 +209,7 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Module 5: Referee Registration */}
+          {/* Module 5: Referee Registration (Targeting /association/referees/list) */}
           <div className="p-6 rounded-[32px] bg-white border border-[#CAC4D0]/60 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
             <div className="space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-800">
@@ -226,7 +222,7 @@ export default async function HomePage() {
             </div>
             <div className="pt-2">
               <Link
-                href="/association/referees"
+                href="/association/referees/list"
                 className="w-full h-11 rounded-full bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-amber-800 active:scale-95 transition-all shadow-xs"
               >
                 <span>पंच नोंदणी / Referee Hub</span>
