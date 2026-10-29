@@ -9,15 +9,12 @@ import {
     Clock,
     XCircle,
     Printer,
-    Download,
     Calendar,
     Phone,
     MapPin,
-    QrCode,
     ShieldCheck,
     User,
     ArrowLeft,
-    Sparkles,
 } from "lucide-react";
 
 interface District {
@@ -29,7 +26,8 @@ interface District {
 
 interface PlayerRecord {
     id: string;
-    tracking_id: string;
+    player_id_number?: string | null;
+    tracking_id?: string | null;
     first_name: string;
     middle_name: string;
     surname: string;
@@ -39,7 +37,7 @@ interface PlayerRecord {
     dob: string;
     mobile_no: string;
     email: string;
-    full_address: string;
+    full_address?: string;
     playing_district_id: string;
     status: string;
     state_no: string | null;
@@ -55,7 +53,6 @@ interface TrackCardClientProps {
 export default function TrackCardClient({ districts }: TrackCardClientProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(false);
-    const [searched, setSearched] = useState(false);
     const [player, setPlayer] = useState<PlayerRecord | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -64,13 +61,12 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!searchQuery.trim()) {
-            setErrorMsg("कृपया ट्रॅकिंग आयडी, राज्य क्रमांक किंवा नोंदणीकृत मोबाईल नंबर टाका.");
+            setErrorMsg("कृपया अर्ज क्रमांक (उदा. MKKA-2026-MUM-xxxx) किंवा मोबाईल नंबर प्रविष्ट करा.");
             return;
         }
 
         setLoading(true);
         setErrorMsg(null);
-        setSearched(true);
         setPlayer(null);
 
         try {
@@ -95,6 +91,7 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
 
     const districtInfo = player ? districtMap.get(player.playing_district_id) : null;
     const fullName = player ? `${player.first_name || ""} ${player.middle_name || ""} ${player.surname || ""}`.trim() : "";
+    const displayId = player?.player_id_number || player?.tracking_id || player?.state_no || "MKKA-2026";
 
     return (
         <div className="min-h-[85vh] py-8 px-4 sm:px-6 lg:px-8 space-y-8">
@@ -113,7 +110,7 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
                     खेळाडू सद्यस्थिती व डिजिटल ओळखपत्र (MKKA ID Pass)
                 </h1>
                 <p className="text-xs text-[#49454F]">
-                    आपला अर्ज क्रमांक (Tracking ID), राज्य क्रमांक (State No), किंवा नोंदणीकृत मोबाईल नंबर टाकून स्थिती तपासा आणि ओळखपत्र डाऊनलोड करा.
+                    आपला अर्ज क्रमांक (उदा. MKKA-2026-MUM-4055), राज्य क्रमांक, किंवा नोंदणीकृत मोबाईल नंबर टाकून स्थिती तपासा.
                 </p>
 
                 {/* Search Input Box */}
@@ -122,7 +119,7 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
                         <Search className="w-4 h-4 absolute left-4 text-[#79747E]" />
                         <input
                             type="text"
-                            placeholder="उदा. MKKA-2026-xxxx किंवा 9004884885..."
+                            placeholder="उदा. MKKA-2026-MUM-4055 किंवा मोबाईल नंबर..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full h-13 pl-11 pr-32 rounded-full bg-white border-2 border-[#6750A4]/40 text-xs font-semibold text-[#1C1B1F] shadow-sm focus:outline-none focus:border-[#6750A4] focus:ring-4 focus:ring-[#EADDFF]/50"
@@ -256,10 +253,10 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
                                 <div className="grid grid-cols-2 gap-2 text-xs pt-1">
                                     <div>
                                         <span className="text-[9px] text-purple-200 uppercase font-semibold block print:text-gray-700">
-                                            राज्य नोंदणी क्र. (State No)
+                                            नोंदणी क्रमांक (ID No)
                                         </span>
                                         <strong className="font-mono text-xs text-amber-300 print:text-black">
-                                            {player.state_no || player.tracking_id}
+                                            {displayId}
                                         </strong>
                                     </div>
 
@@ -295,7 +292,7 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
                             {/* QR Verification Mock Box */}
                             <div className="w-20 h-20 rounded-2xl bg-white p-1.5 flex flex-col items-center justify-center shrink-0 shadow-xs">
                                 <img
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://mkka.org/verify/${player.tracking_id}`}
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://mkka.org/verify/${displayId}`}
                                     alt="QR Code"
                                     className="w-full h-full object-contain"
                                 />
@@ -305,7 +302,7 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
 
                         {/* Card Footer */}
                         <div className="pt-3 border-t border-white/20 flex items-center justify-between text-[9px] font-mono text-purple-200 print:text-gray-700 print:border-black">
-                            <span>TRACK ID: {player.tracking_id}</span>
+                            <span>OFFICIAL ID: {displayId}</span>
                             <span className="flex items-center gap-1 font-bold text-white print:text-black">
                                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-300 print:text-black" />
                                 अधिकृत डिजिटल खेळाडू ओळखपत्र
