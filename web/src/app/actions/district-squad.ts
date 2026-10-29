@@ -27,7 +27,8 @@ export async function submitDistrictSquadAction(formData: FormData) {
         const coachMobile = (formData.get("coach_mobile") as string)?.trim();
         const managerName = (formData.get("manager_name") as string)?.trim();
         const managerMobile = (formData.get("manager_mobile") as string)?.trim();
-        const selectedPlayerIds = JSON.parse((formData.get("player_ids") as string) || "[]");
+        const rawPlayerIds = formData.get("player_ids") as string;
+        const selectedPlayerIds = JSON.parse(rawPlayerIds || "[]");
 
         if (!tournamentId) {
             return { success: false, error: "स्पर्धा निवडणे अनिवार्य आहे." };
@@ -49,41 +50,24 @@ export async function submitDistrictSquadAction(formData: FormData) {
             process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        // Save squad into tournament_entries or squads table
-        const { error: upsertError } = await supabase.from("tournament_entries").upsert(
-            {
-                tournament_id: tournamentId,
-                district_id: session.districtId,
-                coach_name: coachName,
-                coach_mobile: coachMobile,
-                manager_name: managerName || null,
-                manager_mobile: managerMobile || null,
-                player_ids: selectedPlayerIds,
-                submitted_at: new Date().toISOString(),
-                status: "SUBMITTED",
-            },
-            { onConflict: "tournament_id,district_id" }
-        );
+        const payload = {
+            tournament_id: tournamentId,
+            district_id: session.districtId,
+            coach_name: coachName,
+            coach_mobile: coachMobile,
+            manager_name: managerName || null,
+            manager_mobile: managerMobile || null,
+            player_ids: selectedPlayerIds,
+            status: "SUBMITTED",
+            updated_at: new Date().toISOString(),
+        };
 
-        if (upsertError) {
-            // Fallback: If table name differs or column is json
-            const { error: altError } = await supabase.from("squads").upsert(
-                {
-                    tournament_id: tournamentId,
-                    district_id: session.districtId,
-                    coach_name: coachName,
-                    coach_mobile: coachMobile,
-                    manager_name: managerName || null,
-                    manager_mobile: managerMobile || null,
-                    player_ids: selectedPlayerIds,
-                    updated_at: new Date().toISOString(),
-                },
-                { onConflict: "tournament_id,district_id" }
-            );
+        const { error } = await supabase
+            .from("tournament_entries")
+            .upsert(payload, { onConflict: "tournament_id,district_id" });
 
-            if (altError) {
-                return { success: false, error: upsertError.message };
-            }
+        if (error) {
+            return { success: false, error: error.message };
         }
 
         revalidatePath(`/district/competitions`);
