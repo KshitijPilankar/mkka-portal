@@ -10,34 +10,18 @@ export const metadata = {
 async function ApprovalsDataContainer() {
     const supabase = await createServerSupabase();
 
-    // Fetch pending player applications with district details
+    // Fetch pending player applications with full details & district relation
     const { data: pendingPlayers } = await supabase
         .from('players')
         .select(`
-      id,
-      first_name,
-      middle_name,
-      surname,
-      aadhar_no,
-      mobile_no,
-      email,
-      gender,
-      dob,
-      full_address,
-      pincode,
-      photo_path,
-      address_proof_path,
-      id_proof_path,
-      dob_proof_path,
-      status,
-      created_at,
+      *,
       playing_district:districts!players_playing_district_id_fkey (
         name_en,
         name_mr,
         code
       )
     `)
-        .eq('status', 'PENDING')
+        .in('status', ['PENDING', 'PENDING_SCRUTINY'])
         .order('created_at', { ascending: false });
 
     return <ApprovalClient initialPlayers={pendingPlayers || []} />;
