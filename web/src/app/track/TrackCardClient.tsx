@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
     Search,
@@ -13,8 +13,8 @@ import {
     Phone,
     MapPin,
     ShieldCheck,
-    User,
     ArrowLeft,
+    QrCode as QrIcon,
 } from "lucide-react";
 
 interface District {
@@ -55,6 +55,14 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
     const [loading, setLoading] = useState(false);
     const [player, setPlayer] = useState<PlayerRecord | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [hasPhotoError, setHasPhotoError] = useState(false);
+    const [originUrl, setOriginUrl] = useState("https://mkka.org");
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            setOriginUrl(window.location.origin);
+        }
+    }, []);
 
     const districtMap = new Map(districts.map((d) => [d.id, d]));
 
@@ -68,6 +76,7 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
         setLoading(true);
         setErrorMsg(null);
         setPlayer(null);
+        setHasPhotoError(false);
 
         try {
             const res = await fetch(`/api/track-player?query=${encodeURIComponent(searchQuery.trim())}`);
@@ -90,8 +99,16 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
     };
 
     const districtInfo = player ? districtMap.get(player.playing_district_id) : null;
-    const fullName = player ? `${player.first_name || ""} ${player.middle_name || ""} ${player.surname || ""}`.trim() : "";
-    const displayId = player?.player_id_number || player?.tracking_id || player?.state_no || "MKKA-2026";
+    const fullName = player
+        ? `${player.first_name || ""} ${player.middle_name || ""} ${player.surname || ""}`.trim()
+        : "";
+    const displayId =
+        player?.player_id_number || player?.tracking_id || player?.state_no || "MKKA-2026";
+
+    const qrVerificationUrl = `${originUrl}/track?query=${encodeURIComponent(displayId)}`;
+    const qrCodeApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+        qrVerificationUrl
+    )}&margin=0&color=21-0-93`;
 
     return (
         <div className="min-h-[85vh] py-8 px-4 sm:px-6 lg:px-8 space-y-8">
@@ -119,7 +136,7 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
                         <Search className="w-4 h-4 absolute left-4 text-[#79747E]" />
                         <input
                             type="text"
-                            placeholder="उदा. MKKA-2026-MUM-4055 किंवा मोबाईल नंबर..."
+                            placeholder="उदा. MKKA-2026-MUM-1005 किंवा मोबाईल नंबर..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full h-13 pl-11 pr-32 rounded-full bg-white border-2 border-[#6750A4]/40 text-xs font-semibold text-[#1C1B1F] shadow-sm focus:outline-none focus:border-[#6750A4] focus:ring-4 focus:ring-[#EADDFF]/50"
@@ -163,7 +180,7 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
                             )}
                             <div>
                                 <span className="text-[10px] font-bold text-[#79747E] uppercase tracking-wider block">
-                                    अर्जाची सद्यस्थिती (Status)
+                                    अर्जाची सद्यस्थिती (STATUS)
                                 </span>
                                 <span className="text-sm font-bold text-[#1C1B1F]">
                                     {player.status === "APPROVED"
@@ -178,23 +195,24 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
                         {player.status === "APPROVED" && (
                             <button
                                 onClick={handlePrint}
-                                className="h-9 px-4 rounded-full bg-[#EADDFF] text-[#21005D] text-xs font-bold hover:bg-[#D0BCFF] flex items-center gap-1.5 transition-all shadow-xs"
+                                className="h-10 px-5 rounded-full bg-[#6750A4] text-white text-xs font-bold hover:bg-[#6750A4]/90 flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
                             >
-                                <Printer className="w-3.5 h-3.5" />
+                                <Printer className="w-4 h-4" />
                                 <span>प्रिंट / सेव्ह कार्ड</span>
                             </button>
                         )}
                     </div>
 
-                    {/* OFFICIAL MKKA DIGITAL SMART CARD */}
-                    <div className="relative rounded-[32px] overflow-hidden bg-gradient-to-br from-[#21005D] via-[#4F378B] to-[#6750A4] text-white p-6 sm:p-7 shadow-xl border border-purple-300/30 print:shadow-none print:border-2 print:border-black print:m-0 print:p-6 print:text-black print:bg-none">
-                        {/* Background Watermark Pattern */}
-                        <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-48 h-48 rounded-full bg-white/5 blur-2xl pointer-events-none" />
+                    {/* OFFICIAL MKKA DIGITAL SMART CARD (PVC Ratio Layout) */}
+                    <div className="relative rounded-[28px] overflow-hidden bg-gradient-to-br from-[#1C0F38] via-[#2D1654] to-[#4F2D88] text-white p-6 sm:p-7 shadow-2xl border border-purple-300/30 print:shadow-none print:border-2 print:border-black print:m-0 print:p-6 print:text-black print:bg-none">
+                        {/* Ambient Background Accents */}
+                        <div className="absolute right-0 top-0 w-56 h-56 rounded-full bg-purple-400/10 blur-3xl pointer-events-none" />
+                        <div className="absolute left-1/4 bottom-0 w-44 h-44 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none" />
 
                         {/* Card Header */}
-                        <div className="flex items-center justify-between pb-4 border-b border-white/20 print:border-b-2 print:border-black">
+                        <div className="flex items-center justify-between pb-3.5 border-b border-white/20 print:border-b-2 print:border-black">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shadow-xs">
+                                <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shadow-sm shrink-0">
                                     <img
                                         src="/logo.png"
                                         alt="MKKA"
@@ -214,8 +232,8 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
                                 </div>
                             </div>
 
-                            <div className="text-right">
-                                <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-400 text-[#21005D] text-[9px] font-black uppercase tracking-wider">
+                            <div className="text-right shrink-0">
+                                <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-400 text-[#21005D] text-[9px] font-black uppercase tracking-wider shadow-xs">
                                     VERIFIED
                                 </span>
                                 <span className="block text-[8px] font-mono text-purple-200 mt-0.5 print:text-gray-700">
@@ -225,78 +243,99 @@ export default function TrackCardClient({ districts }: TrackCardClientProps) {
                         </div>
 
                         {/* Card Body */}
-                        <div className="py-5 flex flex-col sm:flex-row gap-5 items-center sm:items-start">
-                            {/* Photo Box */}
-                            <div className="w-28 h-36 rounded-2xl overflow-hidden bg-white/10 border-2 border-white/40 flex items-center justify-center shrink-0 shadow-md relative print:border-black">
-                                {player.photo_path ? (
+                        <div className="py-4.5 flex flex-row items-center gap-4 sm:gap-5">
+                            {/* Photo Box with Instagram-Style Default Silhouette Fallback */}
+                            <div className="w-24 sm:w-28 h-32 sm:h-36 rounded-2xl overflow-hidden bg-[#E2E5EB] border-2 border-white/60 flex items-center justify-center shrink-0 shadow-md relative print:border-black">
+                                {player.photo_path && !hasPhotoError ? (
                                     <img
                                         src={`/api/view-document?path=${encodeURIComponent(player.photo_path)}`}
                                         alt={fullName}
+                                        onError={() => setHasPhotoError(true)}
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <User className="w-12 h-12 text-white/50 print:text-black" />
+                                    /* Instagram Profile No-DP Vector Silhouette */
+                                    <svg
+                                        className="w-full h-full text-[#9CA3AF]"
+                                        viewBox="0 0 100 125"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <rect width="100" height="125" fill="#E5E7EB" />
+                                        {/* Head */}
+                                        <circle cx="50" cy="42" r="22" fill="#9CA3AF" />
+                                        {/* Torso/Shoulders */}
+                                        <path
+                                            d="M12 118 C12 88 28 78 50 78 C72 78 88 88 88 118 Z"
+                                            fill="#9CA3AF"
+                                        />
+                                    </svg>
                                 )}
                             </div>
 
-                            {/* Player Metadata */}
-                            <div className="flex-1 space-y-2 text-center sm:text-left">
+                            {/* Player Metadata Details */}
+                            <div className="flex-1 min-w-0 space-y-2">
                                 <div>
-                                    <span className="text-[10px] text-purple-200 uppercase font-semibold block print:text-gray-700">
-                                        खेळाडूचे नाव (Athlete Name)
+                                    <span className="text-[9px] text-purple-200 uppercase font-semibold tracking-wider block print:text-gray-700">
+                                        खेळाडूचे नाव (ATHLETE NAME)
                                     </span>
-                                    <h2 className="text-lg sm:text-xl font-black text-white tracking-wide print:text-black">
+                                    <h2 className="text-base sm:text-lg font-black text-white tracking-wide truncate print:text-black">
                                         {fullName}
                                     </h2>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs pt-0.5">
                                     <div>
-                                        <span className="text-[9px] text-purple-200 uppercase font-semibold block print:text-gray-700">
-                                            नोंदणी क्रमांक (ID No)
+                                        <span className="text-[8px] sm:text-[9px] text-purple-200 uppercase font-medium block print:text-gray-700">
+                                            नोंदणी क्रमांक (ID NO)
                                         </span>
-                                        <strong className="font-mono text-xs text-amber-300 print:text-black">
+                                        <strong className="font-mono text-[11px] sm:text-xs text-amber-300 font-bold block truncate print:text-black">
                                             {displayId}
                                         </strong>
                                     </div>
 
                                     <div>
-                                        <span className="text-[9px] text-purple-200 uppercase font-semibold block print:text-gray-700">
-                                            राष्ट्रीय क्र. (KKFI No)
+                                        <span className="text-[8px] sm:text-[9px] text-purple-200 uppercase font-medium block print:text-gray-700">
+                                            राष्ट्रीय क्र. (KKFI NO)
                                         </span>
-                                        <strong className="font-mono text-xs text-white print:text-black">
+                                        <strong className="font-mono text-[11px] sm:text-xs text-white block truncate print:text-black">
                                             {player.federation_no || "-"}
                                         </strong>
                                     </div>
 
                                     <div>
-                                        <span className="text-[9px] text-purple-200 uppercase font-semibold block print:text-gray-700">
-                                            संलग्न जिल्हा (District)
+                                        <span className="text-[8px] sm:text-[9px] text-purple-200 uppercase font-medium block print:text-gray-700">
+                                            संलग्न जिल्हा (DISTRICT)
                                         </span>
-                                        <strong className="text-xs text-white print:text-black">
+                                        <strong className="text-[11px] sm:text-xs text-white block truncate print:text-black">
                                             {districtInfo ? `${districtInfo.name_mr} (${districtInfo.code})` : "महाराष्ट्र"}
                                         </strong>
                                     </div>
 
                                     <div>
-                                        <span className="text-[9px] text-purple-200 uppercase font-semibold block print:text-gray-700">
+                                        <span className="text-[8px] sm:text-[9px] text-purple-200 uppercase font-medium block print:text-gray-700">
                                             जन्मदिनांक (DOB)
                                         </span>
-                                        <strong className="font-mono text-xs text-white print:text-black">
+                                        <strong className="font-mono text-[11px] sm:text-xs text-white block print:text-black">
                                             {player.dob}
                                         </strong>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* QR Verification Mock Box */}
-                            <div className="w-20 h-20 rounded-2xl bg-white p-1.5 flex flex-col items-center justify-center shrink-0 shadow-xs">
-                                <img
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://mkka.org/verify/${displayId}`}
-                                    alt="QR Code"
-                                    className="w-full h-full object-contain"
-                                />
-                                <span className="text-[7px] text-[#21005D] font-bold mt-0.5">SCAN TO VERIFY</span>
+                            {/* Modern Crisp QR Code Block */}
+                            <div className="shrink-0 flex flex-col items-center">
+                                <div className="w-[84px] h-[84px] rounded-2xl bg-white p-2 flex items-center justify-center shadow-lg border border-white/80">
+                                    <img
+                                        src={qrCodeApiUrl}
+                                        alt="Official Verification QR"
+                                        className="w-full h-full object-contain"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1 mt-1 text-[8px] font-bold tracking-wider text-purple-200 uppercase print:text-black">
+                                    <QrIcon className="w-2.5 h-2.5 text-emerald-300" />
+                                    <span>SCAN TO VERIFY</span>
+                                </div>
                             </div>
                         </div>
 
