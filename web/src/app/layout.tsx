@@ -31,9 +31,6 @@ export default function RootLayout({
                   src="/logo.png"
                   alt="MKKA Logo"
                   className="w-full h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
                 />
               </div>
               <div className="flex flex-col">
