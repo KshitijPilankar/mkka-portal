@@ -28,7 +28,7 @@ export default function RootLayout({
             <Link href="/" className="flex items-center gap-3 group">
               <div className="relative w-10 h-10 shrink-0">
                 <img
-                  src="/logo.png"
+                  src="/mkka-logo.png"
                   alt="MKKA Logo"
                   className="w-full h-full object-contain"
                 />
