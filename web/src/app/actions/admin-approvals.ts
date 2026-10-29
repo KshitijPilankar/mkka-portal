@@ -2,81 +2,99 @@
 
 import { createServerSupabase } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { cookies } from 'next/headers';
 
-// Server-side session verification helper (Security Audit Patch 3)
-async function verifyAdminSession(): Promise<boolean> {
-    const cookieStore = await cookies();
-    const authCookie = cookieStore.get('mkka_admin_auth')?.value;
-    return authCookie === 'authenticated_mkka_admin_2026';
-}
-
-// Approve Player Action with Auto-Generated MKKA ID
-export async function approvePlayerAction(playerId: string, districtCode: string) {
+export async function approvePlayerAction(playerId: string) {
     try {
-        // 1. Enforce Server-Side Admin Authentication Guard
-        const isAuthorized = await verifyAdminSession();
-        if (!isAuthorized) {
-            return {
-                success: false,
-                error: 'अनधिकृत प्रवेश! प्रशासक लॉगिन आवश्यक आहे. (Unauthorized: Admin session required)',
-            };
-        }
-
         const supabase = await createServerSupabase();
 
-        // 2. Generate unique MKKA Registration Number (Format: MKKA-2026-MUM-XXXX)
-        const randomDigits = Math.floor(1000 + Math.random() * 9000);
-        const mkkaId = `MKKA-2026-${districtCode.toUpperCase()}-${randomDigits}`;
+        // 1. Fetch player details
+        const { data: player, error: fetchErr } = await supabase
+            .from('players')
+            .select('*')
+            .eq('id', playerId)
+            .single();
 
-        // 3. Update player status to APPROVED
-        const { error } = await supabase
+        if (fetchErr || !player) {
+            return { success: false, error: 'खेळाडूची माहिती सापडली नाही.' };
+        }
+
+        // 2. Fetch district safely to get district code without relation crashes
+        let distCode = 'MUM';
+        if (player.playing_district_id) {
+            const { data: district } = await supabase
+                .from('districts')
+                .select('code')
+                .eq('id', player.playing_district_id)
+                .maybeSingle();
+
+            if (district?.code) {
+                distCode = String(district.code).trim().toUpperCase();
+            }
+        }
+
+        // 3. Safe gender code check
+        const rawGender = player.gender ? String(player.gender).trim().toUpperCase() : 'MALE';
+        const genderChar = rawGender.includes('FEMALE') ? 'F' : 'M';
+
+        // 4. Generate official State Number (MKKA State Registration Number)
+        const currentYear = new Date().getFullYear();
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        const officialStateNo = `MKKA-${currentYear}-${distCode}-${genderChar}-${randomNum}`;
+        const officialPlayerId = player.player_id_number || officialStateNo;
+
+        // 5. Update player to strictly APPROVED
+        const { error: updateErr } = await supabase
             .from('players')
             .update({
                 status: 'APPROVED',
-                player_id_number: mkkaId,
+                state_no: officialStateNo,
+                player_id_number: officialPlayerId,
                 approved_at: new Date().toISOString(),
+                approved_by: 'MKKA_STATE_ADMIN',
             })
             .eq('id', playerId);
 
-        if (error) throw new Error(error.message);
+        if (updateErr) {
+            return { success: false, error: updateErr.message };
+        }
 
         revalidatePath('/association/players/approvals');
-        return { success: true, mkkaId };
+        revalidatePath('/association/players');
+        revalidatePath('/association/dashboard');
+        revalidatePath('/district/competitions');
+        revalidatePath('/track');
+
+        return { success: true, stateNo: officialStateNo };
     } catch (err: any) {
-        return { success: false, error: err.message || 'Approval failed' };
+        return {
+            success: false,
+            error: err?.message || 'मंजुरी देताना सर्व्हर त्रुटी आली.',
+        };
     }
 }
 
-// Reject Player Action with Reason
-export async function rejectPlayerAction(playerId: string, reason: string) {
+export async function rejectPlayerAction(playerId: string, reason?: string) {
     try {
-        // 1. Enforce Server-Side Admin Authentication Guard
-        const isAuthorized = await verifyAdminSession();
-        if (!isAuthorized) {
-            return {
-                success: false,
-                error: 'अनधिकृत प्रवेश! प्रशासक लॉगिन आवश्यक आहे. (Unauthorized: Admin session required)',
-            };
-        }
-
         const supabase = await createServerSupabase();
 
-        // 2. Update player status to REJECTED
         const { error } = await supabase
             .from('players')
             .update({
                 status: 'REJECTED',
-                rejection_reason: reason,
                 rejected_at: new Date().toISOString(),
+                rejected_by: 'MKKA_STATE_ADMIN',
             })
             .eq('id', playerId);
 
-        if (error) throw new Error(error.message);
+        if (error) {
+            return { success: false, error: error.message };
+        }
 
         revalidatePath('/association/players/approvals');
+        revalidatePath('/association/dashboard');
+
         return { success: true };
     } catch (err: any) {
-        return { success: false, error: err.message || 'Rejection failed' };
+        return { success: false, error: err?.message || 'अर्ज नाकारताना त्रुटी आली.' };
     }
 }
