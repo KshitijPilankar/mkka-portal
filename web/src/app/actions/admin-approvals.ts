@@ -18,7 +18,7 @@ export async function approvePlayerAction(playerId: string) {
             return { success: false, error: 'खेळाडूची माहिती सापडली नाही.' };
         }
 
-        // 2. Fetch district safely to get district code without relation crashes
+        // 2. Fetch district code safely
         let distCode = 'MUM';
         if (player.playing_district_id) {
             const { data: district } = await supabase
@@ -32,7 +32,7 @@ export async function approvePlayerAction(playerId: string) {
             }
         }
 
-        // 3. Safe gender code check
+        // 3. Gender identifier for State Number
         const rawGender = player.gender ? String(player.gender).trim().toUpperCase() : 'MALE';
         const genderChar = rawGender.includes('FEMALE') ? 'F' : 'M';
 
@@ -43,6 +43,7 @@ export async function approvePlayerAction(playerId: string) {
         const officialPlayerId = player.player_id_number || officialStateNo;
 
         // 5. Update player to strictly APPROVED
+        // (Note: approved_by column expects UUID in schema, avoiding string literal)
         const { error: updateErr } = await supabase
             .from('players')
             .update({
@@ -50,7 +51,6 @@ export async function approvePlayerAction(playerId: string) {
                 state_no: officialStateNo,
                 player_id_number: officialPlayerId,
                 approved_at: new Date().toISOString(),
-                approved_by: 'MKKA_STATE_ADMIN',
             })
             .eq('id', playerId);
 
@@ -82,7 +82,6 @@ export async function rejectPlayerAction(playerId: string, reason?: string) {
             .update({
                 status: 'REJECTED',
                 rejected_at: new Date().toISOString(),
-                rejected_by: 'MKKA_STATE_ADMIN',
             })
             .eq('id', playerId);
 
