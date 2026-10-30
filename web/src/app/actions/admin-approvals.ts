@@ -2,9 +2,31 @@
 
 import { createServerSupabase } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
+
+/**
+ * Enforces strict Admin Session verification before performing approval/rejection mutations (SEC-01)
+ */
+async function verifyAdminSession(): Promise<boolean> {
+    const cookieStore = await cookies();
+    const adminAuth = cookieStore.get('mkka_admin_auth')?.value;
+    const adminSession = cookieStore.get('mkka_admin_session')?.value;
+    return (
+        adminAuth === 'authenticated_mkka_admin_2026' ||
+        adminSession === 'authenticated_admin'
+    );
+}
 
 export async function approvePlayerAction(playerId: string) {
     try {
+        const isAdmin = await verifyAdminSession();
+        if (!isAdmin) {
+            return {
+                success: false,
+                error: 'अनधिकृत प्रवेश! खेळाडू मंजूर करण्यासाठी प्रशासक लॉगिन आवश्यक आहे. (Unauthorized Admin)',
+            };
+        }
+
         const supabase = await createServerSupabase();
 
         // 1. Fetch player details
@@ -75,12 +97,21 @@ export async function approvePlayerAction(playerId: string) {
 
 export async function rejectPlayerAction(playerId: string, reason?: string) {
     try {
+        const isAdmin = await verifyAdminSession();
+        if (!isAdmin) {
+            return {
+                success: false,
+                error: 'अनधिकृत प्रवेश! अर्ज नाकारण्यासाठी प्रशासक लॉगिन आवश्यक आहे. (Unauthorized Admin)',
+            };
+        }
+
         const supabase = await createServerSupabase();
 
         const { error } = await supabase
             .from('players')
             .update({
                 status: 'REJECTED',
+                rejection_reason: reason || null,
                 rejected_at: new Date().toISOString(),
             })
             .eq('id', playerId);

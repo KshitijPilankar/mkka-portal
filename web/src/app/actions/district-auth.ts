@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { signDistrictSession } from "@/lib/auth/district-session";
 
 export async function loginDistrictAction(formData: FormData) {
     try {
@@ -44,8 +45,11 @@ export async function loginDistrictAction(formData: FormData) {
             loggedInAt: new Date().toISOString(),
         };
 
+        // Set Cryptographically Signed District Session Cookie (SEC-04)
+        const sessionToken = signDistrictSession(sessionData);
+
         const cookieStore = await cookies();
-        cookieStore.set("mkka_district_session", JSON.stringify(sessionData), {
+        cookieStore.set("mkka_district_session", sessionToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",

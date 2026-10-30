@@ -8,12 +8,12 @@ export const dynamic = "force-dynamic";
 
 export default async function AssociationDistrictsPage() {
     const cookieStore = await cookies();
+    const adminAuth = cookieStore.get("mkka_admin_auth")?.value;
+    const adminSession = cookieStore.get("mkka_admin_session")?.value;
+
     const hasAdminSession =
-        cookieStore.get("mkka_admin_auth")?.value ||
-        cookieStore.get("mkka_admin_session")?.value ||
-        cookieStore.get("admin_session")?.value ||
-        cookieStore.get("mkka_admin")?.value ||
-        cookieStore.get("admin_auth")?.value;
+        adminAuth === "authenticated_mkka_admin_2026" ||
+        adminSession === "authenticated_admin";
 
     if (!hasAdminSession) {
         redirect("/association/login");
@@ -24,8 +24,12 @@ export default async function AssociationDistrictsPage() {
         process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // SEC-03: Strictly select only safe non-credential columns to prevent password leakage
     const [districtsRes, playersRes] = await Promise.all([
-        supabase.from("districts").select("*").order("name_mr", { ascending: true }),
+        supabase
+            .from("districts")
+            .select("id, name_mr, name_en, code, contact_person, mobile, email, username")
+            .order("name_mr", { ascending: true }),
         supabase.from("players").select("playing_district_id"),
     ]);
 
@@ -42,6 +46,9 @@ export default async function AssociationDistrictsPage() {
 
     const districtsWithCounts = districts.map((d: any) => ({
         ...d,
+        district_name: d.name_mr,
+        mobile_number: d.mobile,
+        password: null, // Ensure password is never passed to client
         player_count: countMap.get(d.id) || 0,
     }));
 

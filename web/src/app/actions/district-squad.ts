@@ -1,23 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
-
-async function getDistrictSession() {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("mkka_district_session");
-    if (!sessionCookie?.value) return null;
-    try {
-        return JSON.parse(sessionCookie.value);
-    } catch {
-        return null;
-    }
-}
+import { getVerifiedDistrictSession } from "@/lib/auth/district-session";
 
 export async function submitDistrictSquadAction(formData: FormData) {
     try {
-        const session = await getDistrictSession();
+        const session = await getVerifiedDistrictSession();
         if (!session) {
             return { success: false, error: "कृपया जिल्हा लॉगिन पुन्हा करा. (Unauthorized)" };
         }

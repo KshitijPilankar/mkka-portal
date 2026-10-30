@@ -5,8 +5,8 @@ import { createServerSupabase } from '@/lib/supabase/server';
 function maskAadhaar(val?: string | null): string {
     if (!val) return '';
     const clean = val.toString().replace(/\s|-/g, '');
-    if (clean.length < 4) return 'XXXX-XXXX-XXXX';
-    return `XXXX-XXXX-${clean.slice(-4)}`;
+    if (clean.length < 4) return 'XXXXXXXXXXXX';
+    return `XXXXXXXX${clean.slice(-4)}`;
 }
 
 function maskMobile(val?: string | null): string {
