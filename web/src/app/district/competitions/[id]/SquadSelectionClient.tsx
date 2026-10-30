@@ -22,7 +22,6 @@ interface Player {
     first_name: string;
     middle_name?: string | null;
     surname: string;
-    state_no?: string | null;
     player_id_number?: string | null;
     mobile_no?: string | null;
     dob: string;
@@ -35,18 +34,20 @@ interface Tournament {
     name_mr?: string;
     title?: string;
     name?: string;
+    name_en?: string;
     tournament_name?: string;
     category?: string;
     age_group?: string;
-    min_dob?: string | null; // e.g. "2012-01-01"
-    max_dob?: string | null; // e.g. "2016-12-31"
+    min_dob?: string | null;
+    max_dob?: string | null;
     dob_cutoff?: string | null;
     entry_deadline?: string;
+    registration_deadline?: string;
 }
 
 interface Props {
     tournament: Tournament;
-    players: Player[];
+    players?: Player[];
     districtCode: string;
     districtName: string;
     existingSquad?: {
@@ -128,7 +129,7 @@ function checkPlayerDobEligibility(
 
 export default function SquadSelectionClient({
     tournament,
-    players,
+    players = [],
     districtCode,
     districtName,
     existingSquad,
@@ -147,32 +148,35 @@ export default function SquadSelectionClient({
         null
     );
 
+    const safePlayers = Array.isArray(players) ? players : [];
+
     const tournamentTitle =
-        tournament.name_mr ||
-        tournament.title ||
-        tournament.name ||
-        tournament.tournament_name ||
+        tournament?.name_mr ||
+        tournament?.title ||
+        tournament?.name ||
+        tournament?.name_en ||
+        tournament?.tournament_name ||
         "महाराष्ट्र राज्य अजिंक्यपद खो-खो स्पर्धा";
 
     const togglePlayer = (player: Player) => {
         const { isEligible } = checkPlayerDobEligibility(player.dob, tournament);
-        if (!isEligible) return; // Disallow selection if ineligible
+        if (!isEligible) return;
 
         if (selectedPlayerIds.includes(player.id)) {
-            setSelectedPlayerIds(selectedPlayerIds.filter((id) => id !== player.id));
+            setSelectedPlayerIds((prev) => prev.filter((id) => id !== player.id));
         } else {
             if (selectedPlayerIds.length >= 15) {
                 setFeedback({
                     type: "error",
-                    text: "एका संघात कमाल १५ खेळाडूंचीच निवड करता येते.",
+                    text: "एका संघात जास्तीत जास्त १५ खेळाडू निवडता येतात.",
                 });
                 return;
             }
-            setSelectedPlayerIds([...selectedPlayerIds, player.id]);
+            setSelectedPlayerIds((prev) => [...prev, player.id]);
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setFeedback(null);
 
@@ -243,19 +247,21 @@ export default function SquadSelectionClient({
                     </div>
 
                     {/* DOB Criteria Banner */}
-                    {(tournament.min_dob || tournament.dob_cutoff || tournament.category) && (
+                    {(tournament?.min_dob || tournament?.dob_cutoff || tournament?.category) && (
                         <div className="px-4 py-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
                             <span className="font-bold flex items-center gap-1.5">
                                 <Calendar className="w-4 h-4 text-amber-700" />
                                 <span>अधिकृत जन्मतारीख मर्यादा (DOB Limit):</span>
                             </span>
-                            <span className="text-[11px] font-mono mt-0.5 block">
-                                {tournament.min_dob
-                                    ? `जन्मतारीख: ${tournament.min_dob} नंतरची असणे आवश्यक`
-                                    : tournament.category?.includes("SUB_JUNIOR")
-                                        ? "१४ वर्षांखालील: ०१/०१/२०१२ नंतर जन्मलेले खेळाडू"
-                                        : "असोसिएशन विहित नियमांनुसार वयोमर्यादा लागू"}
-                            </span>
+                            <div className="text-[11px] font-mono mt-0.5">
+                                {tournament?.min_dob && tournament?.max_dob
+                                    ? `${tournament.min_dob} ते ${tournament.max_dob}`
+                                    : tournament?.min_dob
+                                        ? `${tournament.min_dob} नंतर जन्मलेले`
+                                        : tournament?.dob_cutoff
+                                            ? `कट-ऑफ: ${tournament.dob_cutoff}`
+                                            : tournament?.category || "सर्व वयोगट"}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -263,36 +269,37 @@ export default function SquadSelectionClient({
 
             {feedback && (
                 <div
-                    className={`p-4 rounded-2xl text-xs flex items-center justify-between border ${feedback.type === "success"
+                    className={`p-4 rounded-2xl border text-xs flex items-center gap-2.5 ${feedback.type === "success"
                             ? "bg-emerald-50 border-emerald-200 text-emerald-800"
                             : "bg-rose-50 border-rose-200 text-rose-800"
                         }`}
                 >
-                    <div className="flex items-center gap-2">
-                        {feedback.type === "success" ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                        ) : (
-                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                        )}
-                        <span>{feedback.text}</span>
-                    </div>
-                    <button onClick={() => setFeedback(null)}>
-                        <XCircle className="w-4 h-4" />
-                    </button>
+                    {feedback.type === "success" ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    )}
+                    <span className="font-medium">{feedback.text}</span>
                 </div>
             )}
 
-            {/* Selected Counter Pill */}
-            <div className="p-4 rounded-2xl bg-[#F3EDF7] border border-[#CAC4D0]/50 flex items-center justify-between">
-                <span className="text-xs font-bold text-[#1C1B1F]">
-                    निवडलेले खेळाडू: <strong>{selectedPlayerIds.length} / १५</strong> (किमान १२ आवश्यक)
-                </span>
-                <span
-                    className={`px-3 py-1 rounded-full text-[11px] font-bold ${isCountValid
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}
-                >
+            {/* Selection Status Counter */}
+            <div className="p-4 rounded-2xl bg-[#EADDFF]/50 border border-[#CAC4D0]/60 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-[#21005D]">
+                        निवडलेले खेळाडू (Selected):
+                    </span>
+                    <span
+                        className={`px-3 py-1 rounded-full text-xs font-black ${isCountValid
+                                ? "bg-emerald-600 text-white"
+                                : "bg-amber-500 text-white"
+                            }`}
+                    >
+                        {selectedPlayerIds.length} / १५ (किमान १२ आवश्यक)
+                    </span>
+                </div>
+
+                <span className="text-[11px] font-medium text-[#49454F]">
                     {isCountValid ? "पात्र संख्या (Eligible Count)" : "अपूर्ण संख्या (Incomplete)"}
                 </span>
             </div>
@@ -302,71 +309,77 @@ export default function SquadSelectionClient({
                 <div>
                     <h2 className="text-xs font-bold text-[#21005D] uppercase tracking-wider mb-3 flex items-center gap-1.5">
                         <Users className="w-4 h-4 text-[#6750A4]" />
-                        <span>जिल्ह्यातील खेळाडू यादी (Select 12 to 15 Players):</span>
+                        <span>जिल्ह्यातील मान्यताप्राप्त खेळाडू (Select 12 to 15 Players):</span>
                     </h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                        {players.map((player) => {
-                            const fullName = `${player.first_name || ""} ${player.middle_name || ""} ${player.surname || ""}`.trim();
-                            const isSelected = selectedPlayerIds.includes(player.id);
-                            const { isEligible, reason } = checkPlayerDobEligibility(player.dob, tournament);
+                    {safePlayers.length === 0 ? (
+                        <div className="p-8 text-center rounded-2xl bg-white border border-[#CAC4D0]/60 text-xs text-[#49454F]">
+                            या जिल्ह्यात सध्या एकही मान्यताप्राप्त (Approved) खेळाडू उपलब्ध नाही. आधी खेळाडू छाननी कक्षातून खेळाडू मंजूर करा.
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                            {safePlayers.map((player) => {
+                                const fullName = `${player.first_name || ""} ${player.middle_name || ""} ${player.surname || ""}`.trim();
+                                const isSelected = selectedPlayerIds.includes(player.id);
+                                const { isEligible, reason } = checkPlayerDobEligibility(player.dob, tournament);
 
-                            return (
-                                <div
-                                    key={player.id}
-                                    onClick={() => {
-                                        if (isEligible) togglePlayer(player);
-                                    }}
-                                    className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${!isEligible
-                                            ? "bg-gray-100/70 border-gray-200 opacity-60 cursor-not-allowed"
-                                            : isSelected
-                                                ? "bg-[#EADDFF]/40 border-[#6750A4] shadow-xs cursor-pointer"
-                                                : "bg-white border-[#CAC4D0]/60 hover:border-[#6750A4]/60 cursor-pointer"
-                                        }`}
-                                >
-                                    <div className="space-y-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs font-bold text-[#1C1B1F] truncate block">
-                                                {fullName}
-                                            </span>
-                                            {!isEligible && (
-                                                <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[9px] font-bold shrink-0">
-                                                    ⛔ अपात्र (DOB बाहेर)
-                                                </span>
-                                            )}
-                                            {isEligible && isSelected && (
-                                                <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[9px] font-bold shrink-0">
-                                                    निवडला
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="text-[11px] text-[#49454F] flex flex-wrap gap-x-3 gap-y-0.5 font-mono">
-                                            <span>जन्मतारीख: <strong>{player.dob}</strong></span>
-                                            <span>मो.: {player.mobile_no || "-"}</span>
-                                        </div>
-
-                                        {!isEligible && reason && (
-                                            <p className="text-[10px] text-rose-700 font-medium">
-                                                {reason}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        disabled={!isEligible}
-                                        onChange={() => {
+                                return (
+                                    <div
+                                        key={player.id}
+                                        onClick={() => {
                                             if (isEligible) togglePlayer(player);
                                         }}
-                                        className={`w-5 h-5 rounded-md text-[#6750A4] focus:ring-[#6750A4] ${!isEligible ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+                                        className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${!isEligible
+                                                ? "bg-gray-100/70 border-gray-200 opacity-60 cursor-not-allowed"
+                                                : isSelected
+                                                    ? "bg-[#EADDFF]/40 border-[#6750A4] shadow-xs cursor-pointer"
+                                                    : "bg-white border-[#CAC4D0]/60 hover:border-[#6750A4]/60 cursor-pointer"
                                             }`}
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
+                                    >
+                                        <div className="space-y-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-[#1C1B1F] truncate block">
+                                                    {fullName}
+                                                </span>
+                                                {!isEligible && (
+                                                    <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[9px] font-bold shrink-0">
+                                                        ⛔ अपात्र (DOB बाहेर)
+                                                    </span>
+                                                )}
+                                                {isEligible && isSelected && (
+                                                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[9px] font-bold shrink-0">
+                                                        निवडला
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="text-[11px] text-[#49454F] flex flex-wrap gap-x-3 gap-y-0.5 font-mono">
+                                                <span>जन्मतारीख: <strong>{player.dob}</strong></span>
+                                                <span>मो.: {player.mobile_no || "-"}</span>
+                                            </div>
+
+                                            {!isEligible && reason && (
+                                                <p className="text-[10px] text-rose-700 font-medium">
+                                                    {reason}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            disabled={!isEligible}
+                                            onChange={() => {
+                                                if (isEligible) togglePlayer(player);
+                                            }}
+                                            className={`w-5 h-5 rounded-md text-[#6750A4] focus:ring-[#6750A4] ${!isEligible ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+                                                }`}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Coach & Manager Details */}
@@ -438,7 +451,7 @@ export default function SquadSelectionClient({
                     <button
                         type="submit"
                         disabled={!isCountValid || isPending}
-                        className="h-11 px-8 rounded-full bg-[#6750A4] text-white text-xs font-bold hover:bg-[#6750A4]/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md active:scale-95 transition-all"
+                        className="h-11 px-8 rounded-full bg-[#6750A4] text-white text-xs font-bold hover:bg-[#6750A4]/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
                     >
                         {isPending ? (
                             <>

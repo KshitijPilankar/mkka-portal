@@ -1,67 +1,148 @@
-import React from "react";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-import SquadSelectionClient from "./SquadSelectionClient";
+import React from 'react';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { createServerSupabase } from '@/lib/supabase/server';
+import SquadSelectionClient from './SquadSelectionClient';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
-export default async function SquadSelectionPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
+export default async function DistrictSquadEntryPage({
+    params,
+}: {
+    params: Promise<{ id: string }> | { id: string };
+}) {
+    const resolvedParams = await Promise.resolve(params);
+    const tournamentId = resolvedParams?.id;
+
+    if (!tournamentId) {
+        redirect('/district/competitions');
+    }
+
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("mkka_district_session");
+    const sessionCookie =
+        cookieStore.get('mkka_district_session')?.value ||
+        cookieStore.get('mkka_district_auth')?.value ||
+        cookieStore.get('district_session')?.value;
 
-    if (!sessionCookie?.value) {
-        redirect("/district/login");
+    const supabase = await createServerSupabase();
+
+    // 1. Resolve logged in district
+    let currentDistrict: any = null;
+    if (sessionCookie) {
+        try {
+            const parsed = JSON.parse(sessionCookie);
+            const distId = parsed.districtId || parsed.id;
+            if (distId) {
+                const { data } = await supabase
+                    .from('districts')
+                    .select('*')
+                    .eq('id', distId)
+                    .maybeSingle();
+                currentDistrict = data;
+            } else if (parsed.code) {
+                const { data } = await supabase
+                    .from('districts')
+                    .select('*')
+                    .eq('code', parsed.code)
+                    .maybeSingle();
+                currentDistrict = data;
+            }
+        } catch {
+            const { data } = await supabase
+                .from('districts')
+                .select('*')
+                .eq('code', sessionCookie)
+                .maybeSingle();
+            currentDistrict = data;
+        }
     }
 
-    let session: any = null;
-    try {
-        session = JSON.parse(sessionCookie.value);
-    } catch {
-        redirect("/district/login");
+    // Fallback to Mumbai City if testing directly
+    if (!currentDistrict) {
+        const { data: defaultDist } = await supabase
+            .from('districts')
+            .select('*')
+            .eq('code', 'MUM')
+            .maybeSingle();
+        currentDistrict = defaultDist;
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey =
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // 2. Fetch Tournament details
+    const { data: tournament, error: tourError } = await supabase
+        .from('tournaments')
+        .select('*')
+        .eq('id', tournamentId)
+        .maybeSingle();
 
-    const [tournamentRes, playersRes, existingEntryRes] = await Promise.all([
-        supabase.from("tournaments").select("*").eq("id", id).maybeSingle(),
-        supabase
-            .from("players")
-            .select("*")
-            .eq("playing_district_id", session.districtId)
-            .eq("status", "APPROVED")
-            .order("first_name", { ascending: true }),
-        supabase
-            .from("tournament_entries")
-            .select("*")
-            .eq("tournament_id", id)
-            .eq("district_id", session.districtId)
-            .maybeSingle(),
-    ]);
+    if (tourError || !tournament) {
+        redirect('/district/competitions');
+    }
 
-    const tournament = tournamentRes.data || {
-        id,
-        title: "महाराष्ट्र राज्य अजिंक्यपद निवड चाचणी खो-खो स्पर्धा २०२६-२७",
-        venue: "शिवछत्रपती क्रीडा संकुल, बालेवाडी, पुणे",
-    };
+    // 3. Fetch approved players for this district
+    let playersData: any[] = [];
+    if (currentDistrict?.id) {
+        const { data } = await supabase
+            .from('players')
+            .select('id, first_name, middle_name, surname, dob, gender, mobile_no, player_id_number, status')
+            .eq('playing_district_id', currentDistrict.id)
+            .eq('status', 'APPROVED')
+            .order('first_name', { ascending: true });
+        playersData = data || [];
+    }
 
-    const players = playersRes.data || [];
-    const existingEntry = existingEntryRes.data || null;
+    // 4. Fetch existing squad submission if already submitted
+    let existingSquad = null;
+    if (currentDistrict?.id) {
+        const [squadRes, entryRes] = await Promise.all([
+            supabase
+                .from('tournament_squads')
+                .select(`
+            id,
+            coach_name,
+            manager_name,
+            tournament_squad_players (
+              player_id
+            )
+          `)
+                .eq('tournament_id', tournamentId)
+                .eq('district_id', currentDistrict.id)
+                .maybeSingle(),
+            supabase
+                .from('tournament_entries')
+                .select('*')
+                .eq('tournament_id', tournamentId)
+                .eq('district_id', currentDistrict.id)
+                .maybeSingle(),
+        ]);
+
+        if (entryRes.data) {
+            existingSquad = {
+                player_ids: entryRes.data.player_ids || [],
+                coach_name: entryRes.data.coach_name || '',
+                coach_mobile: entryRes.data.coach_mobile || '',
+                manager_name: entryRes.data.manager_name || '',
+                manager_mobile: entryRes.data.manager_mobile || '',
+            };
+        } else if (squadRes.data) {
+            existingSquad = {
+                player_ids: (squadRes.data.tournament_squad_players || []).map((p: any) => p.player_id),
+                coach_name: squadRes.data.coach_name || '',
+                coach_mobile: '',
+                manager_name: squadRes.data.manager_name || '',
+                manager_mobile: '',
+            };
+        }
+    }
 
     return (
-        <div className="min-h-screen bg-[#FFFBFE] py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-                <SquadSelectionClient
-                    tournament={tournament}
-                    session={session}
-                    availablePlayers={players}
-                    existingEntry={existingEntry}
-                />
-            </div>
+        <div className="min-h-screen bg-[#FFFBFE] py-6 px-4 sm:px-6 lg:px-8">
+            <SquadSelectionClient
+                tournament={tournament}
+                players={playersData || []}
+                districtCode={currentDistrict?.code || 'MUM'}
+                districtName={currentDistrict?.name_mr || 'मुंबई शहर'}
+                existingSquad={existingSquad}
+            />
         </div>
     );
 }
