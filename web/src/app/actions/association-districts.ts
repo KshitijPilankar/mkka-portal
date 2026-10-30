@@ -1,20 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
-
-async function verifyAdminSession(): Promise<boolean> {
-    const cookieStore = await cookies();
-    const session =
-        cookieStore.get("mkka_admin_auth")?.value ||
-        cookieStore.get("mkka_admin_session")?.value ||
-        cookieStore.get("admin_session")?.value ||
-        cookieStore.get("mkka_admin")?.value ||
-        cookieStore.get("admin_auth")?.value;
-
-    return !!session;
-}
+import { verifyAdminSession } from "@/lib/auth/admin-session";
 
 export async function updateDistrictDetailsAction(
     districtId: string,

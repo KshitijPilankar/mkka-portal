@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifyAdminToken } from "@/lib/auth/admin-session";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Protect all association admin routes except the login page
     if (pathname.startsWith("/association") && pathname !== "/association/login") {
-        const adminAuthCookie = request.cookies.get("mkka_admin_auth")?.value;
+        const adminAuthCookie =
+            request.cookies.get("mkka_admin_auth")?.value ||
+            request.cookies.get("mkka_admin_session")?.value;
 
-        // Server-level rejection: Redirect unauthenticated requests to login
-        if (adminAuthCookie !== "authenticated_mkka_admin_2026") {
+        // Server-level rejection: Cryptographic token validation (SEC-09, SEC-10, SEC-14)
+        const isAuthorized = await verifyAdminToken(adminAuthCookie);
+        if (!isAuthorized) {
             const loginUrl = new URL("/association/login", request.url);
             loginUrl.searchParams.set("redirect", pathname);
             return NextResponse.redirect(loginUrl);

@@ -1,20 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
-
-async function verifyAdminSession(): Promise<boolean> {
-    const cookieStore = await cookies();
-    const session =
-        cookieStore.get("mkka_admin_auth")?.value ||
-        cookieStore.get("mkka_admin_session")?.value ||
-        cookieStore.get("admin_session")?.value ||
-        cookieStore.get("mkka_admin")?.value ||
-        cookieStore.get("admin_auth")?.value;
-
-    return !!session;
-}
+import { verifyAdminSession } from "@/lib/auth/admin-session";
 
 export async function uploadNoticeAction(formData: FormData) {
     try {
@@ -34,12 +22,29 @@ export async function uploadNoticeAction(formData: FormData) {
             return { success: false, error: "परिपत्रक फाईल अपलोड करणे अनिवार्य आहे. (File is required)" };
         }
 
+        // SEC-12: Strict MIME & File Extension Whitelist validation
+        const allowedExtensions = ["pdf", "jpg", "jpeg", "png"];
+        const fileExt = (file.name.split(".").pop() || "").toLowerCase();
+        if (!allowedExtensions.includes(fileExt)) {
+            return {
+                success: false,
+                error: "अवैध फाईल प्रकार! फक्त PDF, JPG किंवा PNG फाईल्स अपलोड करता येतील. (Invalid file extension)",
+            };
+        }
+
+        const allowedMimeTypes = ["application/pdf", "image/jpeg", "image/png"];
+        if (file.type && !allowedMimeTypes.includes(file.type.toLowerCase())) {
+            return {
+                success: false,
+                error: "अवैध फाईल फॉरमॅट! सुरक्षित फाईल अपलोड करा. (Invalid MIME type)",
+            };
+        }
+
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseKey =
             process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const fileExt = file.name.split(".").pop();
         const cleanFileName = `notice_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
         const storagePath = `notices/${cleanFileName}`;
 

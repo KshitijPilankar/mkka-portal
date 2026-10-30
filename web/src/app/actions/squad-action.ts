@@ -1,22 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { getVerifiedDistrictSession } from "@/lib/auth/district-session";
+import { verifyAdminSession } from "@/lib/auth/admin-session";
 import { submitDistrictSquadAction as originalSubmitDistrictSquadAction } from "./squad-actions";
-
-/**
- * Checks for administrative privileges
- */
-async function verifyAdminSession(): Promise<boolean> {
-    const cookieStore = await cookies();
-    const adminAuth = cookieStore.get("mkka_admin_auth")?.value;
-    const adminSession = cookieStore.get("mkka_admin_session")?.value;
-    return (
-        adminAuth === "authenticated_mkka_admin_2026" ||
-        adminSession === "authenticated_admin"
-    );
-}
 
 export async function submitDistrictSquadAction(payload: {
     tournamentId: string;

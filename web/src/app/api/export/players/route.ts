@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import ExcelJS from "exceljs";
 import { createClient } from "@supabase/supabase-js";
 import { getVerifiedDistrictSession } from "@/lib/auth/district-session";
+import { verifyAdminSession } from "@/lib/auth/admin-session";
 
 function calculateAgeSection(dobString: string): string {
     if (!dobString) return "N/A";
@@ -23,17 +24,8 @@ export async function GET(request: NextRequest) {
     try {
         const cookieStore = await cookies();
 
-        // 1. Strict Server Session Cookie Verification (SEC-02 - Referer bypass removed)
-        const adminAuthCookie =
-            cookieStore.get("mkka_admin_auth")?.value ||
-            request.cookies.get("mkka_admin_auth")?.value;
-        const adminSessionCookie =
-            cookieStore.get("mkka_admin_session")?.value ||
-            request.cookies.get("mkka_admin_session")?.value;
-
-        const isAdmin =
-            adminAuthCookie === "authenticated_mkka_admin_2026" ||
-            adminSessionCookie === "authenticated_admin";
+        // 1. Strict Server Session Verification (SEC-02, SEC-10, SEC-14)
+        const isAdmin = await verifyAdminSession();
 
         const districtSession = await getVerifiedDistrictSession();
 

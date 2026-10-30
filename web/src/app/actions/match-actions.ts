@@ -2,6 +2,7 @@
 
 import { createServerSupabase } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { verifyAdminSession } from '@/lib/auth/admin-session';
 
 // 1. Tournament ke sabhi matches fetch karna
 export async function getTournamentMatchesAction(tournamentId: string) {
@@ -34,7 +35,7 @@ export async function getTournamentMatchesAction(tournamentId: string) {
     }
 }
 
-// 2. Naya match schedule karna
+// 2. Naya match schedule karna (SEC-09: Requires authenticated session)
 export async function createMatchFixtureAction(payload: {
     tournamentId: string;
     matchNumber: number;
@@ -46,6 +47,14 @@ export async function createMatchFixtureAction(payload: {
     scheduledTime: string;
 }) {
     try {
+        const isAuthorized = await verifyAdminSession();
+        if (!isAuthorized) {
+            return {
+                success: false,
+                error: 'अनधिकृत प्रवेश! सामना तयार करण्यासाठी प्रशासक किंवा सामनाधिकारी लॉगिन आवश्यक आहे. (Unauthorized: Admin session required)',
+            };
+        }
+
         const supabase = await createServerSupabase();
 
         const { data, error } = await supabase
@@ -111,7 +120,7 @@ export async function getMatchDetailsAction(matchId: string) {
     }
 }
 
-// 4. Match Score update karna + Audit Log insert karna
+// 4. Match Score update karna + Audit Log insert karna (SEC-09: Requires authenticated session)
 export async function updateMatchScoreAction(payload: {
     matchId: string;
     tournamentId: string;
@@ -122,6 +131,14 @@ export async function updateMatchScoreAction(payload: {
     note?: string;
 }) {
     try {
+        const isAuthorized = await verifyAdminSession();
+        if (!isAuthorized) {
+            return {
+                success: false,
+                error: 'अनधिकृत प्रवेश! गुण नोंदवण्यासाठी प्रशासक किंवा सामनाधिकारी लॉगिन आवश्यक आहे. (Unauthorized: Admin session required)',
+            };
+        }
+
         const supabase = await createServerSupabase();
 
         // A. Match table update karein

@@ -3,6 +3,8 @@
 import { createServerSupabase } from '@/lib/supabase/server';
 import { PlayerRegistrationSchema } from '@/lib/validations/player';
 import { revalidatePath } from 'next/cache';
+import { verifyAdminSession } from '@/lib/auth/admin-session';
+import { getVerifiedDistrictSession } from '@/lib/auth/district-session';
 
 // Allowed MIME types according to Security Audit Patch 5
 const ALLOWED_MIME_TYPES = [
@@ -204,7 +206,7 @@ export async function registerPlayerAction(formData: FormData) {
     }
 }
 
-// कागदावरून स्कॅन केलेल्या खेळाडूंची नोंद (Direct approve बंद - Strictly PENDING)
+// कागदावरून स्कॅन केलेल्या खेळाडूंची नोंद (SEC-11: Admin/District Authenticated Only)
 export async function batchRegisterScannedPlayersAction(payload: {
     districtId: string;
     players: Array<{
@@ -218,6 +220,23 @@ export async function batchRegisterScannedPlayersAction(payload: {
     }>;
 }) {
     try {
+        const isAdmin = await verifyAdminSession();
+        const districtSession = await getVerifiedDistrictSession();
+
+        if (!isAdmin && !districtSession) {
+            return {
+                success: false,
+                error: 'अनधिकृत प्रवेश! खेळाडू नोंदणी करण्यासाठी अधिकृत जिल्हा किंवा प्रशासक लॉगिन आवश्यक आहे. (Unauthorized)',
+            };
+        }
+
+        if (!isAdmin && districtSession && districtSession.districtId !== payload.districtId) {
+            return {
+                success: false,
+                error: 'सुरक्षा त्रुटी: तुम्ही फक्त तुमच्याच अधिकृत जिल्ह्याचे खेळाडू नोंदवू शकता. (Unauthorized District)',
+            };
+        }
+
         const supabase = await createServerSupabase();
 
         const currentYear = new Date().getFullYear();
@@ -235,7 +254,6 @@ export async function batchRegisterScannedPlayersAction(payload: {
                 playing_district_id: payload.districtId,
                 current_district_id: payload.districtId,
                 residential_district_id: payload.districtId,
-                // FIXED: Direct approval changed to PENDING
                 status: 'PENDING',
                 player_id_number: `MKKA-${currentYear}-DIST-${randomSix}`,
                 photo_path: 'demo/player-photo.jpg',

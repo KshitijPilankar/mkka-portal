@@ -1,19 +1,13 @@
 import React from "react";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdminSession } from "@/lib/auth/admin-session";
 import DistrictsManagerClient from "./DistrictsManagerClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function AssociationDistrictsPage() {
-    const cookieStore = await cookies();
-    const adminAuth = cookieStore.get("mkka_admin_auth")?.value;
-    const adminSession = cookieStore.get("mkka_admin_session")?.value;
-
-    const hasAdminSession =
-        adminAuth === "authenticated_mkka_admin_2026" ||
-        adminSession === "authenticated_admin";
+    const hasAdminSession = await verifyAdminSession();
 
     if (!hasAdminSession) {
         redirect("/association/login");

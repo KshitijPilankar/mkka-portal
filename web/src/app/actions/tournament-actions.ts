@@ -3,17 +3,7 @@
 import { createServerSupabase } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
-import { cookies } from 'next/headers';
-
-// Server-side session verification helper (Security Audit Patch 3)
-async function verifyAdminSession(): Promise<boolean> {
-    const cookieStore = await cookies();
-    const authCookie =
-        cookieStore.get('mkka_admin_auth')?.value ||
-        cookieStore.get('mkka_admin_session')?.value ||
-        cookieStore.get('admin_session')?.value;
-    return authCookie === 'authenticated_mkka_admin_2026' || !!authCookie;
-}
+import { verifyAdminSession } from '@/lib/auth/admin-session';
 
 // १. सर्व अधिकृत स्पर्धांची यादी आणणे (/tournaments आणि /association/tournaments पेजसाठी)
 export async function getTournamentsAction() {
@@ -70,7 +60,7 @@ export async function saveTournamentAwardsAction(payload: {
     bestDefenderDistrict: string;
 }) {
     try {
-        // Enforce Server-Side Admin Session Guard
+        // Enforce Server-Side Admin Session Guard (SEC-10)
         const isAuthorized = await verifyAdminSession();
         if (!isAuthorized) {
             return {
@@ -138,7 +128,7 @@ export async function createTournamentAction(
         }
 ) {
     try {
-        // Enforce Server-Side Admin Session Guard
+        // Enforce Server-Side Admin Session Guard (SEC-10)
         const isAuthorized = await verifyAdminSession();
         if (!isAuthorized) {
             return {
@@ -243,24 +233,24 @@ export async function createTournamentAction(
     }
 }
 
-// ४. स्पर्धा सुरक्षितपणे हटवणे (Double-Layer Defense: Admin Session + Exact Name Match)
+// ४. स्पर्धा सुरक्षितपणे हटवणे (SEC-15: Requires Authenticated Admin Session + Exact Name Match)
 export async function deleteTournamentAction(payload: {
     tournamentId: string;
-    adminPin: string;
+    adminPin?: string;
     confirmName: string;
     expectedName: string;
 }) {
     try {
-        // Enforce Server-Side Admin Session Guard (Layer 1)
+        // Enforce Server-Side Admin Session Guard (SEC-15)
         const isAuthorized = await verifyAdminSession();
         if (!isAuthorized) {
             return {
                 success: false,
-                error: 'अनधिकृत प्रवेश! प्रशासक लॉगिन आवश्यक आहे. (Unauthorized: Admin session required)',
+                error: 'अनधिकृत प्रवेश! स्पर्धा हटवण्यासाठी प्रशासक लॉगिन आवश्यक आहे. (Unauthorized: Admin session required)',
             };
         }
 
-        // Exact Name Confirmation Check (Layer 2)
+        // Exact Name Confirmation Check (Double-Layer confirmation)
         if (payload.confirmName.trim().toLowerCase() !== payload.expectedName.trim().toLowerCase()) {
             return { success: false, error: 'स्पर्धेचे नाव जुळत नाही! कृपया अचूक नाव टाका.' };
         }

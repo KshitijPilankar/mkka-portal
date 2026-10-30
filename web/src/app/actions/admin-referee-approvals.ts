@@ -2,19 +2,12 @@
 
 import { createServerSupabase } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { cookies } from 'next/headers';
-
-// Server-side session verification helper (Security Audit Patch 3)
-async function verifyAdminSession(): Promise<boolean> {
-    const cookieStore = await cookies();
-    const authCookie = cookieStore.get('mkka_admin_auth')?.value;
-    return authCookie === 'authenticated_mkka_admin_2026';
-}
+import { verifyAdminSession } from '@/lib/auth/admin-session';
 
 // Approve Referee Action (Generates MKKA-REF-2026-XXX ID)
 export async function approveRefereeAction(refereeId: string, districtCode: string) {
     try {
-        // Enforce Server-Side Admin Session Guard
+        // Enforce Server-Side Admin Session Guard (SEC-09, SEC-10)
         const isAuthorized = await verifyAdminSession();
         if (!isAuthorized) {
             return {
@@ -50,7 +43,7 @@ export async function approveRefereeAction(refereeId: string, districtCode: stri
 // Reject Referee Action
 export async function rejectRefereeAction(refereeId: string, reason: string) {
     try {
-        // Enforce Server-Side Admin Session Guard
+        // Enforce Server-Side Admin Session Guard (SEC-09, SEC-10)
         const isAuthorized = await verifyAdminSession();
         if (!isAuthorized) {
             return {
