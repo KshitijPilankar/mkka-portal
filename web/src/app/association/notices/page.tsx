@@ -1,19 +1,13 @@
 import React from "react";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdminSession } from "@/lib/auth/admin-session";
 import NoticeBoardClient from "./NoticeBoardClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function NoticeBoardPage() {
-    const cookieStore = await cookies();
-    const hasAdminSession =
-        cookieStore.get("mkka_admin_auth")?.value ||
-        cookieStore.get("mkka_admin_session")?.value ||
-        cookieStore.get("admin_session")?.value ||
-        cookieStore.get("mkka_admin")?.value ||
-        cookieStore.get("admin_auth")?.value;
+    const hasAdminSession = await verifyAdminSession();
 
     if (!hasAdminSession) {
         redirect("/association/login");
@@ -24,7 +18,7 @@ export default async function NoticeBoardPage() {
         process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: notices } = await supabase
+    const { data: notices, error } = await supabase
         .from("notices")
         .select("*")
         .order("created_at", { ascending: false });

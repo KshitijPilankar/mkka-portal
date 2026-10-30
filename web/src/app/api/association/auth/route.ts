@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { signAdminToken } from "@/lib/auth/admin-session";
 
 export async function POST(request: Request) {
     try {
@@ -20,10 +21,12 @@ export async function POST(request: Request) {
             message: "प्रवेश यशस्वी! (Authenticated)",
         });
 
-        // Set secure httpOnly cookie (cannot be read or modified by client scripts)
+        // Set cryptographically signed httpOnly session token (SEC-14)
+        const sessionToken = await signAdminToken();
+
         response.cookies.set({
             name: "mkka_admin_auth",
-            value: "authenticated_mkka_admin_2026",
+            value: sessionToken,
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",

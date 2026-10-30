@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdminSession } from "@/lib/auth/admin-session";
 import {
     Users,
     Clock,
@@ -20,14 +21,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AssociationDashboard() {
-    const cookieStore = await cookies();
-    const hasAdminSession =
-        cookieStore.get("mkka_admin_auth")?.value ||
-        cookieStore.get("mkka_admin_session")?.value ||
-        cookieStore.get("admin_session")?.value ||
-        cookieStore.get("mkka_admin")?.value ||
-        cookieStore.get("admin_auth")?.value;
-
+    const hasAdminSession = await verifyAdminSession();
     if (!hasAdminSession) {
         redirect("/association/login");
     }

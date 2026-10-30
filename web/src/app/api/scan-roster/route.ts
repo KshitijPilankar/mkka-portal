@@ -1,7 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Sliding-window in-memory rate limiter (SEC-13: 5 requests per IP per minute)
+interface RateLimitRecord {
+    timestamps: number[];
+}
+
+const rateLimitStore = new Map<string, RateLimitRecord>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 5; // max 5 requests per minute
+
+function getClientIp(req: NextRequest): string {
+    const forwarded = req.headers.get('x-forwarded-for');
+    if (forwarded) {
+        return forwarded.split(',')[0].trim();
+    }
+    const realIp = req.headers.get('x-real-ip');
+    if (realIp) {
+        return realIp.trim();
+    }
+    return '127.0.0.1';
+}
+
+function checkRateLimit(ip: string): { allowed: boolean; retryAfter: number } {
+    const now = Date.now();
+    const record = rateLimitStore.get(ip) || { timestamps: [] };
+
+    // Filter out timestamps older than the sliding window
+    const recent = record.timestamps.filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS);
+
+    if (recent.length >= MAX_REQUESTS_PER_WINDOW) {
+        const oldest = recent[0];
+        const retryAfterMs = RATE_LIMIT_WINDOW_MS - (now - oldest);
+        return {
+            allowed: false,
+            retryAfter: Math.ceil(retryAfterMs / 1000),
+        };
+    }
+
+    recent.push(now);
+    rateLimitStore.set(ip, { timestamps: recent });
+
+    // Periodic prune of inactive IPs
+    if (rateLimitStore.size > 200) {
+        for (const [key, val] of rateLimitStore.entries()) {
+            const active = val.timestamps.filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS);
+            if (active.length === 0) {
+                rateLimitStore.delete(key);
+            } else {
+                rateLimitStore.set(key, { timestamps: active });
+            }
+        }
+    }
+
+    return { allowed: true, retryAfter: 0 };
+}
+
 export async function POST(req: NextRequest) {
     try {
+        // SEC-13 Rate Limiting Check
+        const clientIp = getClientIp(req);
+        const rateLimit = checkRateLimit(clientIp);
+
+        if (!rateLimit.allowed) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: `अति विनंत्या (Rate limit exceeded). कृपया ${rateLimit.retryAfter} सेकंदांनंतर पुन्हा प्रयत्न करा. एका मिनिटात कमाल ५ वेळा विनंती करता येईल.`,
+                },
+                {
+                    status: 429,
+                    headers: {
+                        'Retry-After': String(rateLimit.retryAfter),
+                    },
+                }
+            );
+        }
+
         const formData = await req.formData();
         const file = formData.get('image') as File;
 

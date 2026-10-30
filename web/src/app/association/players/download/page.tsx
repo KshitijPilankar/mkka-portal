@@ -2,17 +2,19 @@ import React from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
+import { verifyAdminSession } from "@/lib/auth/admin-session";
 import DownloadPlayersClient from "./DownloadPlayersClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function DownloadPlayersPage() {
-    const cookieStore = await cookies();
-    const adminAuthCookie = cookieStore.get("mkka_admin_auth")?.value;
+    const isAuthorized = await verifyAdminSession();
 
-    if (adminAuthCookie !== "authenticated_mkka_admin_2026") {
+    if (!isAuthorized) {
         redirect("/association/login");
     }
+
+    const cookieStore = await cookies();
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
