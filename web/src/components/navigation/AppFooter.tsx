@@ -8,8 +8,6 @@ import {
     ShieldCheck,
     Building2,
     Users,
-    Award,
-    ExternalLink,
 } from "lucide-react";
 
 export default function AppFooter() {
@@ -19,11 +17,15 @@ export default function AppFooter() {
                 {/* 4-Column Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
 
-                    {/* Column 1: Association Brand & Info */}
+                    {/* Column 1: Association Brand with Official Logo */}
                     <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-[#EADDFF] flex items-center justify-center text-[#6750A4]">
-                                <Trophy className="w-6 h-6" />
+                            <div className="w-12 h-12 rounded-2xl bg-white p-1 border border-white/20 shadow-xs flex items-center justify-center shrink-0">
+                                <img
+                                    src="/mkka-logo.png"
+                                    alt="MKKA Logo"
+                                    className="w-full h-full object-contain"
+                                />
                             </div>
                             <h3 className="font-extrabold text-sm sm:text-base leading-snug">
                                 महाराष्ट्र राज्य खो-खो असोसिएशन
@@ -32,7 +34,7 @@ export default function AppFooter() {
                         <p className="text-xs text-[#CAC4D0] leading-relaxed">
                             राज्यभरातील सर्व अधिकृत खो-खो खेळाडू, पंच आणि ३६ जिल्हा संघटनांसाठी केंद्रीयकृत डिजिटल पडताळणी व अजिंक्यपद व्यवस्थापन प्रणाली.
                         </p>
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-[11px] text-[#EADDFF] font-medium">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-[11px] text-[#EADDFF] font-medium border border-white/10">
                             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                             <span>मान्यताप्राप्त राज्य क्रीडा संघटना</span>
                         </div>
@@ -45,23 +47,23 @@ export default function AppFooter() {
                         </h4>
                         <ul className="space-y-2 text-xs text-[#CAC4D0]">
                             <li>
-                                <Link href="/register" className="hover:text-white transition-colors flex items-center gap-1.5">
-                                    <span>खेळाडू नोंदणी अर्ज (Register Now)</span>
+                                <Link href="/register" className="hover:text-white transition-colors">
+                                    खेळाडू नोंदणी अर्ज (Register Now)
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/track" className="hover:text-white transition-colors flex items-center gap-1.5">
-                                    <span>अर्ज स्थिती व QR ओळखपत्र (Track ID)</span>
+                                <Link href="/track" className="hover:text-white transition-colors">
+                                    अर्ज स्थिती व QR ओळखपत्र (Track ID)
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/tournaments" className="hover:text-white transition-colors flex items-center gap-1.5">
-                                    <span>राज्य अजिंक्यपद स्पर्धा कॅलेंडर</span>
+                                <Link href="/tournaments" className="hover:text-white transition-colors">
+                                    राज्य अजिंक्यपद स्पर्धा कॅलेंडर
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/officials/referees" className="hover:text-white transition-colors flex items-center gap-1.5">
-                                    <span>पंच व परीक्षक नोंदणी कक्ष (Referee Hub)</span>
+                                <Link href="/officials/referees" className="hover:text-white transition-colors">
+                                    पंच व परीक्षक नोंदणी कक्ष (Referee Hub)
                                 </Link>
                             </li>
                         </ul>
@@ -74,23 +76,23 @@ export default function AppFooter() {
                         </h4>
                         <ul className="space-y-2 text-xs text-[#CAC4D0]">
                             <li>
-                                <Link href="/district/login" className="hover:text-white transition-colors flex items-center gap-1.5">
-                                    <span>३६ जिल्हा संघटना लॉगिन कक्ष</span>
+                                <Link href="/district/login" className="hover:text-white transition-colors">
+                                    ३६ जिल्हा संघटना लॉगिन कक्ष
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/association/players/approvals" className="hover:text-white transition-colors flex items-center gap-1.5">
-                                    <span>खेळाडू नोंदणी छाननी व पडताळणी</span>
+                                <Link href="/association/players/approvals" className="hover:text-white transition-colors">
+                                    खेळाडू नोंदणी छाननी व पडताळणी
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/association/tournaments" className="hover:text-white transition-colors flex items-center gap-1.5">
-                                    <span>अधिकृत स्पर्धा घोषणा व DOB मर्यादा</span>
+                                <Link href="/association/tournaments" className="hover:text-white transition-colors">
+                                    अधिकृत स्पर्धा घोषणा व DOB मर्यादा
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/association/login" className="hover:text-white transition-colors flex items-center gap-1.5">
-                                    <span>प्रशासकीय नियंत्रण कक्ष (State Admin)</span>
+                                <Link href="/association/login" className="hover:text-white transition-colors">
+                                    प्रशासकीय नियंत्रण कक्ष (State Admin)
                                 </Link>
                             </li>
                         </ul>
