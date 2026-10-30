@@ -1,23 +1,15 @@
 import React from "react";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { getVerifiedDistrictSession } from "@/lib/auth/district-session";
 import DistrictCertificatesClient from "./DistrictCertificatesClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function DistrictCertificatesPage() {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("mkka_district_session");
+    const session = await getVerifiedDistrictSession();
 
-    if (!sessionCookie?.value) {
-        redirect("/district/login");
-    }
-
-    let session: any = null;
-    try {
-        session = JSON.parse(sessionCookie.value);
-    } catch {
+    if (!session || !session.districtId) {
         redirect("/district/login");
     }
 
@@ -26,7 +18,7 @@ export default async function DistrictCertificatesPage() {
         process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // १. या जिल्ह्याने सबमिट केलेल्या नोंदी आणा
+    // १. या अधिकृत जिल्ह्याने सबमिट केलेल्या नोंदी आणा
     const { data: entries } = await supabase
         .from("tournament_entries")
         .select("*")

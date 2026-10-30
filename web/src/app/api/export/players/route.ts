@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import ExcelJS from "exceljs";
 import { createClient } from "@supabase/supabase-js";
+import { getVerifiedDistrictSession } from "@/lib/auth/district-session";
 
 function calculateAgeSection(dobString: string): string {
     if (!dobString) return "N/A";
@@ -22,20 +23,21 @@ export async function GET(request: NextRequest) {
     try {
         const cookieStore = await cookies();
 
-        const hasAdminSession =
+        // 1. Strict Server Session Cookie Verification (SEC-02 - Referer bypass removed)
+        const adminAuthCookie =
             cookieStore.get("mkka_admin_auth")?.value ||
+            request.cookies.get("mkka_admin_auth")?.value;
+        const adminSessionCookie =
             cookieStore.get("mkka_admin_session")?.value ||
-            cookieStore.get("admin_session")?.value ||
-            cookieStore.get("mkka_admin")?.value ||
-            cookieStore.get("admin_auth")?.value ||
-            request.cookies.get("mkka_admin_auth")?.value ||
-            request.cookies.get("mkka_admin_session")?.value ||
-            request.cookies.get("admin_session")?.value;
+            request.cookies.get("mkka_admin_session")?.value;
 
-        const referer = request.headers.get("referer") || "";
-        const isFromAssociationPortal = referer.includes("/association/");
+        const isAdmin =
+            adminAuthCookie === "authenticated_mkka_admin_2026" ||
+            adminSessionCookie === "authenticated_admin";
 
-        if (!hasAdminSession && !isFromAssociationPortal) {
+        const districtSession = await getVerifiedDistrictSession();
+
+        if (!isAdmin && !districtSession) {
             return NextResponse.json(
                 { error: "प्रशासकीय सत्र अवैध आहे. कृपया पुन्हा लॉगिन करा. (Unauthorized access)" },
                 { status: 401 }
@@ -43,8 +45,14 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const districtId = searchParams.get("districtId");
-        const exportAll = searchParams.get("all") === "true";
+        let districtId = searchParams.get("districtId");
+        let exportAll = searchParams.get("all") === "true";
+
+        // Non-admin district accounts are strictly restricted to their own district (Tenant Isolation)
+        if (!isAdmin && districtSession) {
+            exportAll = false;
+            districtId = districtSession.districtId;
+        }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseKey =

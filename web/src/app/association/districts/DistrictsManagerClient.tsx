@@ -68,7 +68,7 @@ export default function DistrictsManagerClient({ initialDistricts }: DistrictsMa
         setContactPerson(district.contact_person || "");
         setMobile(district.mobile || "");
         setEmail(district.email || "");
-        setNewPassword(district.password || "mkka@123");
+        setNewPassword(""); // SEC-03: Never pre-fill or expose passwords
         setToastMessage(null);
     };
 

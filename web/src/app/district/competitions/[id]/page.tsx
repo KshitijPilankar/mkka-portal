@@ -2,6 +2,7 @@ import React from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { getVerifiedDistrictSession } from '@/lib/auth/district-session';
 import SquadSelectionClient from './SquadSelectionClient';
 
 export const dynamic = 'force-dynamic';
@@ -18,43 +19,18 @@ export default async function DistrictSquadEntryPage({
         redirect('/district/competitions');
     }
 
-    const cookieStore = await cookies();
-    const sessionCookie =
-        cookieStore.get('mkka_district_session')?.value ||
-        cookieStore.get('mkka_district_auth')?.value ||
-        cookieStore.get('district_session')?.value;
-
+    const session = await getVerifiedDistrictSession();
     const supabase = await createServerSupabase();
 
-    // 1. Resolve logged in district
+    // 1. Resolve logged in district securely
     let currentDistrict: any = null;
-    if (sessionCookie) {
-        try {
-            const parsed = JSON.parse(sessionCookie);
-            const distId = parsed.districtId || parsed.id;
-            if (distId) {
-                const { data } = await supabase
-                    .from('districts')
-                    .select('*')
-                    .eq('id', distId)
-                    .maybeSingle();
-                currentDistrict = data;
-            } else if (parsed.code) {
-                const { data } = await supabase
-                    .from('districts')
-                    .select('*')
-                    .eq('code', parsed.code)
-                    .maybeSingle();
-                currentDistrict = data;
-            }
-        } catch {
-            const { data } = await supabase
-                .from('districts')
-                .select('*')
-                .eq('code', sessionCookie)
-                .maybeSingle();
-            currentDistrict = data;
-        }
+    if (session?.districtId) {
+        const { data } = await supabase
+            .from('districts')
+            .select('*')
+            .eq('id', session.districtId)
+            .maybeSingle();
+        currentDistrict = data;
     }
 
     // Fallback to Mumbai City if testing directly

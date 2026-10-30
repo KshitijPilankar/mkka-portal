@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { getVerifiedDistrictSession } from '@/lib/auth/district-session';
 import {
     Trophy,
     ArrowLeft,
@@ -16,42 +16,17 @@ import {
 export const dynamic = 'force-dynamic';
 
 export default async function DistrictCompetitionsPage() {
-    const cookieStore = await cookies();
-    const sessionCookie =
-        cookieStore.get('mkka_district_session')?.value ||
-        cookieStore.get('mkka_district_auth')?.value ||
-        cookieStore.get('district_session')?.value;
-
+    const session = await getVerifiedDistrictSession();
     const supabase = await createServerSupabase();
 
     let currentDistrict: any = null;
-    if (sessionCookie) {
-        try {
-            const parsed = JSON.parse(sessionCookie);
-            const distId = parsed.districtId || parsed.id;
-            if (distId) {
-                const { data } = await supabase
-                    .from('districts')
-                    .select('*')
-                    .eq('id', distId)
-                    .maybeSingle();
-                currentDistrict = data;
-            } else if (parsed.code) {
-                const { data } = await supabase
-                    .from('districts')
-                    .select('*')
-                    .eq('code', parsed.code)
-                    .maybeSingle();
-                currentDistrict = data;
-            }
-        } catch {
-            const { data } = await supabase
-                .from('districts')
-                .select('*')
-                .eq('code', sessionCookie)
-                .maybeSingle();
-            currentDistrict = data;
-        }
+    if (session?.districtId) {
+        const { data } = await supabase
+            .from('districts')
+            .select('*')
+            .eq('id', session.districtId)
+            .maybeSingle();
+        currentDistrict = data;
     }
 
     if (!currentDistrict) {

@@ -1,23 +1,15 @@
 import React from "react";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { getVerifiedDistrictSession } from "@/lib/auth/district-session";
 import DistrictPlayersClient from "./DistrictPlayersClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function DistrictPlayersPage() {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("mkka_district_session");
+    const session = await getVerifiedDistrictSession();
 
-    if (!sessionCookie?.value) {
-        redirect("/district/login");
-    }
-
-    let session: any = null;
-    try {
-        session = JSON.parse(sessionCookie.value);
-    } catch {
+    if (!session || !session.districtId) {
         redirect("/district/login");
     }
 
@@ -26,7 +18,7 @@ export default async function DistrictPlayersPage() {
         process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Tenant Isolation: Fetch ONLY this district's registered players
+    // Tenant Isolation: Fetch ONLY this verified district's registered players
     const { data: players } = await supabase
         .from("players")
         .select("*")

@@ -1,5 +1,5 @@
 import React from "react";
-import { cookies } from "next/headers";
+import { getVerifiedDistrictSession } from "@/lib/auth/district-session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
@@ -21,17 +21,9 @@ import { logoutDistrictAction } from "@/app/actions/district-auth";
 export const dynamic = "force-dynamic";
 
 export default async function DistrictDashboardPage() {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("mkka_district_session");
+    const session = await getVerifiedDistrictSession();
 
-    if (!sessionCookie?.value) {
-        redirect("/district/login");
-    }
-
-    let session: any = null;
-    try {
-        session = JSON.parse(sessionCookie.value);
-    } catch {
+    if (!session || !session.districtId) {
         redirect("/district/login");
     }
 
