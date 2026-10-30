@@ -13,19 +13,16 @@ import {
     UserPlus,
     Scale,
     Award,
-    FileText,
-    Phone,
     Home,
-    CheckCircle,
+    CheckCircle2,
     ChevronRight,
-    ExternalLink,
+    ShieldCheck,
 } from "lucide-react";
 
 export default function AppNavbar() {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
 
-    // Close sidebar on route change or ESC key
     useEffect(() => {
         setIsOpen(false);
     }, [pathname]);
@@ -40,45 +37,42 @@ export default function AppNavbar() {
 
     return (
         <>
-            {/* 1. TOP STICKY PROFESSIONAL HEADER */}
+            {/* 1. PROFESSIONAL STICKY HEADER */}
             <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-[#CAC4D0]/60 shadow-xs">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-3">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-4">
 
-                    {/* Left: Hamburger Button + Association Brand */}
-                    <div className="flex items-center gap-3">
+                    {/* Brand Identity with Integrated Menu Trigger */}
+                    <div className="flex items-center gap-3.5">
                         <button
                             type="button"
                             onClick={() => setIsOpen(true)}
-                            aria-label="Open Navigation Menu"
-                            className="w-10 h-10 rounded-2xl bg-[#F3EDF7] hover:bg-[#EADDFF] flex items-center justify-center text-[#1C1B1F] transition-all cursor-pointer border border-[#CAC4D0]/50 active:scale-95"
+                            aria-label="Navigation Menu"
+                            className="inline-flex items-center gap-2 h-10 px-3.5 rounded-full bg-[#F3EDF7] hover:bg-[#EADDFF] text-[#21005D] text-xs font-bold transition-all border border-[#CAC4D0]/50 active:scale-95 cursor-pointer shadow-2xs"
                         >
-                            <Menu className="w-5 h-5 text-[#6750A4]" />
+                            <Menu className="w-4 h-4 text-[#6750A4]" />
+                            <span className="hidden sm:inline">मेनू</span>
                         </button>
 
                         <Link href="/" className="flex items-center gap-3 group">
-                            <div className="w-11 h-11 rounded-2xl bg-[#EADDFF] p-1.5 flex items-center justify-center shadow-xs group-hover:scale-105 transition-all">
+                            <div className="relative w-11 h-11 shrink-0 rounded-2xl bg-white p-1 flex items-center justify-center border border-[#CAC4D0]/40 shadow-xs group-hover:scale-105 transition-all">
                                 <img
-                                    src="/logo.png"
-                                    alt="MKKA Logo"
+                                    src="/mkka-logo.png"
+                                    alt="MKKA State Logo"
                                     className="w-full h-full object-contain"
-                                    onError={(e) => {
-                                        (e.target as HTMLElement).style.display = "none";
-                                    }}
                                 />
-                                <Trophy className="w-6 h-6 text-[#6750A4] hidden [div:has(>img[style*='display: none'])_&]:block" />
                             </div>
                             <div className="leading-tight">
-                                <span className="text-sm sm:text-base font-black text-[#1C1B1F] tracking-tight block">
+                                <span className="text-sm sm:text-base font-black text-[#1C1B1F] tracking-tight block group-hover:text-[#6750A4] transition-colors">
                                     महाराष्ट्र राज्य खो-खो असोसिएशन
                                 </span>
-                                <span className="text-[10px] text-[#79747E] font-medium tracking-wide hidden sm:block">
+                                <span className="text-[10px] text-[#49454F] font-medium tracking-wide hidden sm:block">
                                     Maharashtra Kho-Kho Association (Official State Portal 2026-27)
                                 </span>
                             </div>
                         </Link>
                     </div>
 
-                    {/* Right: Quick Action CTAs */}
+                    {/* Right Action CTAs */}
                     <nav className="flex items-center gap-2 sm:gap-2.5">
                         <Link
                             href="/tournaments"
@@ -118,46 +112,48 @@ export default function AppNavbar() {
                 </div>
             </header>
 
-            {/* 2. GEMINI-STYLE COLLAPSIBLE SIDEBAR DRAWER */}
-            {/* Backdrop Overlay */}
+            {/* 2. GEMINI-STYLE COLLAPSIBLE SIDEBAR */}
             <div
                 className={`fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
                     }`}
                 onClick={() => setIsOpen(false)}
             />
 
-            {/* Sliding Sidebar Panel */}
             <aside
-                className={`fixed top-0 left-0 z-50 h-full w-[300px] sm:w-[340px] bg-[#FDF8FD] border-r border-[#CAC4D0]/70 shadow-2xl flex flex-col justify-between transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"
+                className={`fixed top-0 left-0 z-50 h-full w-[310px] sm:w-[350px] bg-[#FDF8FD] border-r border-[#CAC4D0]/70 shadow-2xl flex flex-col justify-between transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"
                     }`}
             >
-                {/* Sidebar Header */}
+                {/* Sidebar Header with Visible Official Logo */}
                 <div className="p-4 border-b border-[#CAC4D0]/60 flex items-center justify-between bg-white">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-[#EADDFF] flex items-center justify-center text-[#6750A4]">
-                            <Trophy className="w-5 h-5" />
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-white p-1 border border-[#CAC4D0]/40 shadow-xs flex items-center justify-center shrink-0">
+                            <img
+                                src="/mkka-logo.png"
+                                alt="MKKA Logo"
+                                className="w-full h-full object-contain"
+                            />
                         </div>
-                        <div>
+                        <div className="leading-tight">
                             <span className="text-xs font-black text-[#1C1B1F] block">
-                                MKKA Digital Portal
+                                महाराष्ट्र राज्य खो-खो असोसिएशन
                             </span>
                             <span className="text-[10px] text-[#79747E] font-medium block">
-                                सत्र २०२६-२७ अधिकृत नियंत्रण
+                                सत्र २०२६-२७ अधिकृत नियंत्रण कक्ष
                             </span>
                         </div>
                     </div>
 
                     <button
                         onClick={() => setIsOpen(false)}
+                        aria-label="Close menu"
                         className="w-8 h-8 rounded-full bg-[#F3EDF7] hover:bg-[#EADDFF] flex items-center justify-center text-[#1C1B1F] transition-all cursor-pointer"
                     >
                         <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                {/* Sidebar Navigation Items */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-6">
-
+                {/* Navigation Items */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-5">
                     {/* Main Services */}
                     <div>
                         <span className="text-[10px] font-bold text-[#6750A4] uppercase tracking-wider px-3 block mb-1.5">
@@ -207,7 +203,7 @@ export default function AppNavbar() {
                         </div>
                     </div>
 
-                    {/* District & Officials Sections */}
+                    {/* Districts & Officials */}
                     <div>
                         <span className="text-[10px] font-bold text-[#6750A4] uppercase tracking-wider px-3 block mb-1.5">
                             संघटना व अधिकारी कक्ष
@@ -265,10 +261,10 @@ export default function AppNavbar() {
                     </div>
                 </div>
 
-                {/* Sidebar Footer Info */}
+                {/* Sidebar Footer */}
                 <div className="p-4 border-t border-[#CAC4D0]/60 bg-white space-y-2 text-xs">
                     <div className="flex items-center gap-2 text-[#49454F] text-[11px]">
-                        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                         <span>महाराष्ट्र राज्य अधिकृत क्रीडा नोंदणी</span>
                     </div>
                     <p className="text-[10px] text-[#79747E] font-mono">
