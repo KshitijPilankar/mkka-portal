@@ -17,17 +17,13 @@ export default function RootLayout({
   return (
     <html lang="mr" suppressHydrationWarning>
       <body
-        className="min-h-screen flex flex-col bg-[#FDF8FD] text-[#1C1B1F] antialiased selection:bg-purple-100 selection:text-purple-900"
+        className="min-h-screen bg-[#FDF8FD] text-[#1C1B1F] antialiased selection:bg-purple-100 selection:text-purple-900"
         suppressHydrationWarning
       >
-        {/* Top Header & Gemini-style Collapsible Sidebar */}
-        <AppNavbar />
-
-        {/* Main Content Render */}
-        <main className="flex-1">{children}</main>
-
-        {/* Comprehensive Official Footer */}
-        <AppFooter />
+        <AppNavbar>
+          {children}
+          <AppFooter />
+        </AppNavbar>
       </body>
     </html>
   );
